@@ -1,0 +1,11 @@
+.DEFINE SYS_STRING 5
+JMP MAIN
+
+MSG:
+    .STRING "Hello Tests!\n"
+
+MAIN:
+    MOV RS, SYS_STRING
+    MOV RC, MSG
+    SYS
+    HLT
