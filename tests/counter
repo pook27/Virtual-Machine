@@ -1,0 +1,14 @@
+MOV
+R0
+0
+PSH
+1
+LOD
+R0
+ADD
+PUT
+R0
+POP
+JMP
+3
+HLT
