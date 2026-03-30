@@ -1,0 +1,11 @@
+# Compiled executables
+assembler
+cpu
+ 
+# VM bytecode output
+*.vm
+ 
+# Build artifacts
+*.o
+*.a
+*.out

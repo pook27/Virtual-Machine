@@ -19,15 +19,20 @@ typedef enum {
     CMP,
     JIE,
     PUT,
+    SYS,
     HLT
 } Instruction;
 
 typedef enum {
     R0 = (int) pow( 10, floor( log10(MEMORY_SIZE) ) ), // 1e{n} for : (1e{n} , 1e{n+1})
-    R1,
-    R2,
-    R3,
-    R4
+    R1,                                                // general purpose Register
+    R2,                                                // general purpose Register
+    R3,                                                // general purpose Register
+    R4,                                                // general purpose Register
+    RS,                                                // system calls register
+    RC,                                                // character register
+    RY,                                                // Y register
+    RX                                                 // X register
 } Register;
 
 
@@ -51,14 +56,19 @@ int map_token(char* s) {
     if (strcmp(s, "CMP") == 0) return CMP;
     if (strcmp(s, "JIE") == 0) return JIE;
     if (strcmp(s, "PUT") == 0) return PUT;
+    if (strcmp(s, "SYS") == 0) return SYS;
     if (strcmp(s, "HLT") == 0) return HLT;
 
-    //registers
+    //Register
     if (strcmp(s, "R0") == 0) return R0;
     if (strcmp(s, "R1") == 0) return R1;
     if (strcmp(s, "R2") == 0) return R2;
     if (strcmp(s, "R3") == 0) return R3;
     if (strcmp(s, "R4") == 0) return R4;
+    if (strcmp(s, "RS") == 0) return RS;
+    if (strcmp(s, "RC") == 0) return RC;
+    if (strcmp(s, "RY") == 0) return RY;
+    if (strcmp(s, "RX") == 0) return RX;
 
     return atoi(s);
 }
@@ -130,6 +140,30 @@ void eval(int instr) {
                       int target = memory[pc++];
                       if (flag)
                           pc = target;
+                      break;
+                  }
+        case SYS: {
+                      switch(memory[RS]) {
+                          case 1: //print character
+                              printf("%c", memory[RC]);
+                              fflush(stdout);
+                              break;
+                          case 2: //clear screen
+                              printf("\033[2J\033[H");
+                              fflush(stdout);
+                              break;
+                          case 3: //draw pixel
+                              printf("\033[%d;%dH█", memory[RY], memory[RX]);
+                                  fflush(stdout);
+                              break;
+                          case 99: //exit syscall
+                              printf("Program Exited via Syscall.\n");
+                              exit(0);
+                              break;
+                          default:
+                              printf("Error: Unkown syscall %d\n", memory[RS]);
+                              break;
+                      }
                       break;
                   }
     }
