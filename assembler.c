@@ -39,8 +39,10 @@ int main(int argc, char* argv[]) {
     }
 
     char line[MAX_LINE_LEN];
+    int line_num = 0;
 
     while (fgets(line, sizeof(line), infile)) {
+        line_num++;
         strip_comments(line);
         char *token = strtok(line, " \t\r\n,");
 
@@ -54,7 +56,7 @@ int main(int argc, char* argv[]) {
                     labels[label_count].address = token_count;
                     label_count++;
                 } else {
-                    printf("Error: Exceeded maximum number of labels (%d).\n", MAX_LABELS);
+                    printf("Error on line %d: Exceeded maximum number of labels (%d).\n", line_num, MAX_LABELS);
                     fclose(infile);
                     return 1;
                 }
@@ -64,7 +66,7 @@ int main(int argc, char* argv[]) {
                     tokens[token_count][MAX_TOKENS_LEN - 1] = '\0';
                     token_count++;
                 } else {
-                    printf("Error: Exceeded maximum number of tokens (%d).\n", MAX_TOKENS);
+                    printf("Error on line %d: Exceeded maximum number of tokens (%d).\n", line_num, MAX_TOKENS);
                     fclose(infile);
                     return 1;
                 }
