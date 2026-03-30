@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include <unistd.h>
 
 #define MEMORY_SIZE 4096
 
@@ -76,6 +77,10 @@ int map_token(char* s) {
 void eval(int instr) {
     switch(instr) {
         case PSH: {
+                      if (sp <= RX) {
+                          printf("Stack Overflow\n");
+                          exit(1);
+                      }
                       int val = memory[pc++];
                       memory[sp--] = val;
                       break;
@@ -155,6 +160,9 @@ void eval(int instr) {
                           case 3: //draw pixel
                               printf("\033[%d;%dH█", memory[RY], memory[RX]);
                                   fflush(stdout);
+                              break;
+                          case 4: //sleep
+                              usleep(1000);
                               break;
                           case 99: //exit syscall
                               printf("Program Exited via Syscall.\n");
