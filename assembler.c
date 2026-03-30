@@ -118,7 +118,23 @@ int main(int argc, char* argv[]) {
                 if (is_macro) continue;
 
                 int len = strlen(tok);
-                if (len > 0 && tok[len-1] == ':') {
+
+                if (len > 2 && tok[0] == '[' && tok[len-1] == ']') {
+                    char reg_name[MAX_TOKENS_LEN];
+                    strncpy(reg_name, tok + 1, len - 2);
+                    reg_name[len - 2] = '\0';
+
+                    if (token_count > 0) {
+                        if (strcmp(tokens[token_count - 1], "LOD") == 0) {
+                            strcpy(tokens[token_count - 1], "LDI"); // Secretly change to Load Indirect
+                        } else if (strcmp(tokens[token_count - 1], "PUT") == 0) {
+                            strcpy(tokens[token_count - 1], "STI"); // Secretly change to Store Indirect
+                        }
+                    }
+                    strcpy(tokens[token_count++], reg_name);
+                } 
+
+                else if (len > 0 && tok[len-1] == ':') {
                     strncpy(labels[label_count].name, tok, len - 1);
                     labels[label_count].name[len - 1] = '\0';
                     labels[label_count].address = token_count;

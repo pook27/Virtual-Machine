@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <unistd.h>
+#include <termios.h>
 
 #define MEMORY_SIZE 4096
 
@@ -33,6 +34,10 @@ typedef enum {
     JLT,
     CAL,
     RET,
+    LDI,
+    STI,
+    ENT,
+    LEV,
     HLT
 } Instruction;
 
@@ -42,10 +47,11 @@ typedef enum {
     R2,                                                // general purpose Register
     R3,                                                // general purpose Register
     R4,                                                // general purpose Register
-    RS,                                                // system calls register
+    RS,                                                // system calls registet
     RC,                                                // character register
     RY,                                                // Y register
-    RX                                                 // X register
+    RX,                                                // X register
+    FP                                                 // Frame Pointer
 } Register;
 
 typedef enum {
@@ -54,6 +60,7 @@ typedef enum {
    DRAW,
    SLEEP,
    STRING,
+   INPUT,
    EXIT = 99
 } Syscall;
 
@@ -75,6 +82,10 @@ int map_token(char* s) {
     if (strcmp(s, "PUT") == 0) return PUT;
     if (strcmp(s, "SYS") == 0) return SYS;
     if (strcmp(s, "HLT") == 0) return HLT;
+    if (strcmp(s, "LDI") == 0) return LDI;
+    if (strcmp(s, "STI") == 0) return STI;
+    if (strcmp(s, "ENT") == 0) return ENT;
+    if (strcmp(s, "LEV") == 0) return LEV;
 
     // operators
     //
@@ -110,6 +121,7 @@ int map_token(char* s) {
     if (strcmp(s, "RC") == 0) return RC;
     if (strcmp(s, "RY") == 0) return RY;
     if (strcmp(s, "RX") == 0) return RX;
+    if (strcmp(s, "FP") == 0) return FP;
 
     //syscalls
     //
@@ -118,6 +130,7 @@ int map_token(char* s) {
     if (strcmp(s, "DRAW") == 0) return DRAW;
     if (strcmp(s, "SLEEP") == 0) return SLEEP;
     if (strcmp(s, "STRING") == 0) return STRING;
+    if (strcmp(s, "INPUT") == 0) return INPUT;
     if (strcmp(s, "EXIT") == 0) return EXIT;
 
 
@@ -127,7 +140,7 @@ int map_token(char* s) {
 void eval(int instr) {
     switch(instr) {
         case PSH: {
-                      if (sp <= RX) {
+                      if (sp <= FP) {
                           printf("Stack Overflow\n");
                           exit(1);
                       }
@@ -172,7 +185,29 @@ void eval(int instr) {
                       sp++;
                       break;
                   }
-
+        case LDI: {
+                      int reg = memory[pc++];           // Get the register containing the address
+                      int addr = memory[reg];           // Look inside register to get the address
+                      memory[sp--] = memory[addr];      // Push the value at that address onto stack
+                      break;
+                  }
+        case STI: {
+                      int reg = memory[pc++];           // Get the register containing the address
+                      int addr = memory[reg];           // Look inside register to get the address
+                      int val = memory[sp+1];           // Peek at top of stack
+                      memory[addr] = val;               // Store value into that memory address
+                      break;
+                  }
+        case ENT: {
+                      memory[sp--] = memory[FP];
+                      memory[FP] = sp;
+                      break;
+                  }
+        case LEV: {
+                      sp = memory[FP];
+                      memory[FP] = memory[++sp];
+                      break;
+                  }
         case MOV: {
                       int R = memory[pc++];
                       int val = memory[pc++];
@@ -258,7 +293,7 @@ void eval(int instr) {
                   }
         case CAL: {
                        int target = memory[pc++];
-                       if (sp <= RX) {
+                       if (sp <= FP) {
                             printf("Stack Overflow during CAL.\n");
                             exit(1);
                        }
@@ -289,7 +324,7 @@ void eval(int instr) {
                               fflush(stdout);
                               break;
                           case SLEEP: //sleep
-                              usleep(1000);
+                              usleep(memory[RX]*1000);
                               break;
                           case STRING: //print string
                               int addr = memory[RC];
@@ -299,7 +334,17 @@ void eval(int instr) {
                               }
                               fflush(stdout);
                               break;
+                          case INPUT: //input fromn user
+                              struct termios oldt, newt;
+                              tcgetattr(STDIN_FILENO, &oldt);
+                              newt = oldt;
+                              newt.c_lflag &= ~(ICANON | ECHO);
+                              tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+                              memory[RC] = getchar();
+                              tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+                              break;
                           case EXIT: //exit syscall
+                              printf("\033[2J\033[H");
                               printf("Program Exited via Syscall.\n");
                               exit(0);
                               break;
@@ -340,7 +385,6 @@ int main(int argc, char* argv[]) {
         eval(memory[pc++]);
         if (debug_mode) {
             printf("\n[PC: %04d] | Instruction Code: %d\n", pc, memory[pc]);
-            // Print your registers and stack pointer. Adjust variable names to match yours!
             printf("Registers -> RX: %d | RY: %d | RS: %d\n", memory[RX], memory[RY], memory[RS]);
             printf("Stack Ptr -> %d\n", sp);
             printf("Press ENTER to step...");
