@@ -48,7 +48,14 @@ typedef enum {
     RX                                                 // X register
 } Register;
 
-
+typedef enum {
+   CHAR = 1,
+   CLEAR,
+   DRAW,
+   SLEEP,
+   STRING,
+   EXIT = 99
+} Syscall;
 
 int memory[MEMORY_SIZE];
 int pc = 0; //program counter, list of instructions or basically the code
@@ -103,6 +110,16 @@ int map_token(char* s) {
     if (strcmp(s, "RC") == 0) return RC;
     if (strcmp(s, "RY") == 0) return RY;
     if (strcmp(s, "RX") == 0) return RX;
+
+    //syscalls
+    //
+    if (strcmp(s, "CHAR") == 0) return CHAR;
+    if (strcmp(s, "CLEAR") == 0) return CLEAR;
+    if (strcmp(s, "DRAW") == 0) return DRAW;
+    if (strcmp(s, "SLEEP") == 0) return SLEEP;
+    if (strcmp(s, "STRING") == 0) return STRING;
+    if (strcmp(s, "EXIT") == 0) return EXIT;
+
 
     return atoi(s);
 }
@@ -259,22 +276,30 @@ void eval(int instr) {
                   }
         case SYS: {
                       switch(memory[RS]) {
-                          case 1: //print character
+                          case CHAR: //print character
                               printf("%c", memory[RC]);
                               fflush(stdout);
                               break;
-                          case 2: //clear screen
+                          case CLEAR: //clear screen
                               printf("\033[2J\033[H");
                               fflush(stdout);
                               break;
-                          case 3: //draw pixel
+                          case DRAW: //draw pixel
                               printf("\033[%d;%dH█", memory[RY], memory[RX]);
                               fflush(stdout);
                               break;
-                          case 4: //sleep
+                          case SLEEP: //sleep
                               usleep(1000);
                               break;
-                          case 99: //exit syscall
+                          case STRING: //print string
+                              int addr = memory[RC];
+                              while (memory[addr] != 0) {
+                                printf("%c", memory[addr]);
+                                addr++;
+                              }
+                              fflush(stdout);
+                              break;
+                          case EXIT: //exit syscall
                               printf("Program Exited via Syscall.\n");
                               exit(0);
                               break;
