@@ -1,5 +1,3 @@
-%include lib/math.asm
-
 .DATA
 my_score: 50
 greeting: .STRING "Starting Game...\n"
@@ -30,3 +28,5 @@ greeting: .STRING "Starting Game...\n"
     POP                     ; Prints 100!
 
     HLT
+
+%include lib/math.asm
