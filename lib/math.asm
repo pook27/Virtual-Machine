@@ -21,7 +21,7 @@ ABS:
     JGT ABS_DONE ; If R1 > 0, we are already positive, jump to end
     JIE ABS_DONE ; If R1 == 0, jump to end
     ; If we didn't jump, it's negative. So negate it!
-    CAL NEGATE 
+    RUN NEGATE 
 ABS_DONE:
     LEV
     RET
