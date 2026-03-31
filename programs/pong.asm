@@ -5,6 +5,7 @@
 .DEFINE C_MAGENTA 35
 .DEFINE C_CYAN 36
 .DEFINE C_WHITE 37
+.DEFINE VRAM_BASE 1048576
 
 .DATA
     ball_x: 32      ; Start center of 64 width
@@ -197,14 +198,14 @@ DRAW_FRAME:
 ; =========================================
 DRAW_PIXEL:
     ENT
-    ; Formula: 4096 + (RY * 64) + RX
+    ; Formula: 1048576 + (RY * 64) + RX
     LOD RY
     PSH 64
     MUL             ; RY * 64
     LOD RX
     ADD             ; + RX
-    PSH 4096
-    ADD             ; + 4096 (VRAM BASE)
+    PSH VRAM_BASE
+    ADD             ; + 1,048,576 (VRAM BASE)
     PUT R1          ; Store pointer in R1
     DRP
     

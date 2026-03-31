@@ -292,7 +292,7 @@ void eval(int instr) {
                               int addr = read32(RC);
                               while (read32(addr) != 0) {
                                   printf("%c", read32(addr));
-                                  addr++;
+                                  addr += 4;
                               }
                               fflush(stdout);
                               break;
