@@ -32,7 +32,7 @@ typedef enum {
     NOT,
     JGT,
     JLT,
-    CAL,
+    RUN,
     RET,
     LDI,
     STI,
@@ -68,6 +68,14 @@ int memory[MEMORY_SIZE];
 int pc = 0; //program counter, list of instructions or basically the code
 int sp = MEMORY_SIZE - 1; //stack pointer, the "RAM" where the calculations take place
 int flag = 0;
+
+void check_memory(int addr) {
+    if (addr < 0 || addr >= MEMORY_SIZE) {
+        printf("\n[FATAL VM ERROR] Memory access violation at address: %d\n", addr);
+        printf("Halting execution to prevent host corruption.\n");
+        exit(1);
+    }
+}
 
 int map_token(char* s) {
 
@@ -107,7 +115,7 @@ int map_token(char* s) {
     if (strcmp(s, "JIE") == 0) return JIE;
     if (strcmp(s, "JGT") == 0) return JGT;
     if (strcmp(s, "JLT") == 0) return JLT;
-    if (strcmp(s, "CAL") == 0) return CAL;
+    if (strcmp(s, "RUN") == 0) return RUN;
     if (strcmp(s, "RET") == 0) return RET;
 
     //registers
@@ -150,6 +158,7 @@ void eval(int instr) {
                   }
         case LOD: {
                       int reg_addr = memory[pc++];
+                      check_memory(reg_addr);
                       memory[sp--] = memory[reg_addr];
                       break;
                   }
@@ -187,13 +196,17 @@ void eval(int instr) {
                   }
         case LDI: {
                       int reg = memory[pc++];           // Get the register containing the address
+                      check_memory(reg);
                       int addr = memory[reg];           // Look inside register to get the address
+                      check_memory(addr);
                       memory[sp--] = memory[addr];      // Push the value at that address onto stack
                       break;
                   }
         case STI: {
                       int reg = memory[pc++];           // Get the register containing the address
+                      check_memory(reg);
                       int addr = memory[reg];           // Look inside register to get the address
+                      check_memory(addr);
                       int val = memory[sp+1];           // Peek at top of stack
                       memory[addr] = val;               // Store value into that memory address
                       break;
@@ -221,6 +234,7 @@ void eval(int instr) {
                   }
         case PUT: {
                       int addr = memory[pc++];
+                      check_memory(addr);
                       int val = memory[sp+1];
                       memory[addr] = val;
                       break;
@@ -291,10 +305,10 @@ void eval(int instr) {
                       if (flag == -1) pc = target;
                       break;
                   }
-        case CAL: {
+        case RUN: {
                        int target = memory[pc++];
                        if (sp <= FP) {
-                            printf("Stack Overflow during CAL.\n");
+                            printf("Stack Overflow during RUN.\n");
                             exit(1);
                        }
                        memory[sp--] = pc;

@@ -6,7 +6,7 @@ MAIN_LOOP:
     MOV R1, 4
 
     ; Call the subroutine
-    CAL SQUARE
+    RUN SQUARE
 
     ; Print the result
     MOV RS, 1       ; Syscall 1

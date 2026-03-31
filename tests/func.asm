@@ -12,7 +12,7 @@ DOUBLE_R1:
 
 MAIN:
     MOV R1, 21
-    CAL DOUBLE_R1
+    RUN DOUBLE_R1
     LOD R1
     POP         ; Should print 42
     HLT
