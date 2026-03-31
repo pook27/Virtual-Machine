@@ -213,13 +213,13 @@ void eval(int instr) {
         case AND: {
                       int A = memory[++sp]; //pop
                       int B = memory[++sp]; //pop
-                      memory[sp--] = A&&B;
+                      memory[sp--] = A & B;
                       break;
                   }
         case ORR: {
                       int A = memory[++sp]; //pop
                       int B = memory[++sp]; //pop
-                      memory[sp--] = A||B;
+                      memory[sp--] = A | B;
                       break;
                   }
         case POP: {
