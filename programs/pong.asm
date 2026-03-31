@@ -209,7 +209,7 @@ DRAW_PIXEL:
     DRP
     
     LOD R3          ; Load The Color From R3
-    PUT [R1]        ; Store The Color into VRAM memory address!
+    STB [R1]        ; Store The Color into VRAM memory address!
     DRP
     LEV
     RET

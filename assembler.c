@@ -163,7 +163,7 @@ int process_file(const char* filename) {
 void write_token(FILE* outfile, char* tok) {
     for(int j=0; j<label_count; j++) {
         if(strcmp(tok, labels[j].name) == 0) {
-            int abs_addr = labels[j].is_data ? (labels[j].address + 2) : (labels[j].address + 2 + data_token_count);
+            int abs_addr = labels[j].is_data ? ((labels[j].address + 2) * 4) : ((labels[j].address + 2 + data_token_count) * 4);
             fprintf(outfile, "%d\n", abs_addr);
             return;
         }
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
 
     // Automatically write a JMP instruction to jump over all .DATA into the .TEXT segment
     fprintf(outfile, "JMP\n");
-    fprintf(outfile, "%d\n", data_token_count + 2); // Jump target
+    fprintf(outfile, "%d\n", (data_token_count + 2) * 4); // Jump target
 
     for(int i=0; i < data_token_count; i++) write_token(outfile, data_tokens[i]);
     for(int i=0; i < text_token_count; i++) write_token(outfile, text_tokens[i]);

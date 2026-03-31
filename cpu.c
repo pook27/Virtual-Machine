@@ -1,19 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <math.h>
 #include <unistd.h>
 #include <termios.h>
 #include <signal.h>
+#include <stdint.h>
 
-#define MEMORY_SIZE 8192
-#define REG_BASE    1024       // Registers live here
-#define VRAM_BASE   4096       // VRAM starts exactly at index 4096
-#define VRAM_WIDTH  64         // 64 columns
-#define VRAM_HEIGHT 32         // 32 rows
+#define MEMORY_SIZE (8 * 1024 * 1024) // * MB OF RAM!!!!
+#define REG_BASE    0x007FFF00        // Registers live here
+#define VRAM_BASE   0x00100000        // VRAM starts exactly at index 4096
+#define VRAM_WIDTH  64                // 64 columns
+#define VRAM_HEIGHT 32                // 32 rows
 #define VRAM_SIZE   (VRAM_WIDTH * VRAM_HEIGHT) // 2048 integers of VRAM
-#define CLOCK_HZ 100000        // 100 kHz CPU
+#define CLOCK_HZ 100000               // 100 kHz CPU
 
 typedef enum {
     PSH,
@@ -45,20 +45,22 @@ typedef enum {
     STI,
     ENT,
     LEV,
+    LDB,
+    STB,
     HLT
 } Instruction;
 
 typedef enum {
-    R0 = REG_BASE,                                     // general purpose Register
-    R1,                                                // general purpose Register
-    R2,                                                // general purpose Register
-    R3,                                                // general purpose Register
-    R4,                                                // general purpose Register
-    RS,                                                // system calls registet
-    RC,                                                // character register
-    RY,                                                // Y register
-    RX,                                                // X register
-    FP                                                 // Frame Pointer
+    R0 = REG_BASE,                                                    // general purpose Register
+    R1 = REG_BASE + 4,                                                // general purpose Register
+    R2 = REG_BASE + 8,                                                // general purpose Register
+    R3 = REG_BASE + 12,                                               // general purpose Register
+    R4 = REG_BASE + 16,                                               // general purpose Register
+    RS = REG_BASE + 20,                                               // system calls registet
+    RC = REG_BASE + 24,                                               // character register
+    RY = REG_BASE + 28,                                               // Y register
+    RX = REG_BASE + 32,                                               // X register
+    FP = REG_BASE + 36                                                // Frame Pointer
 } Register;
 
 typedef enum {
@@ -72,17 +74,58 @@ typedef enum {
     EXIT = 99
 } Syscall;
 
-int memory[MEMORY_SIZE];
+uint8_t memory[MEMORY_SIZE];
 int pc = 0; //program counter, list of instructions or basically the code
-int sp = MEMORY_SIZE - 1; //stack pointer, the "RAM" where the calculations take place
+int sp = REG_BASE - 4; //stack pointer, the "RAM" where the calculations take place
 int flag = 0;
 
 void check_memory(int addr) {
     if (addr < 0 || addr >= MEMORY_SIZE) {
         printf("\n[FATAL VM ERROR] Memory access violation at address: %d\n", addr);
-        printf("Halting execution to prevent host corruption.\n");
         exit(1);
     }
+}
+
+void write32(int addr, int val) {
+    check_memory(addr);
+    check_memory(addr + 3);
+    memory[addr] = val & 0xFF;
+    memory[addr+1] = (val >> 8) & 0xFF;
+    memory[addr+2] = (val >> 16) & 0xFF;
+    memory[addr+3] = (val >> 24) & 0xFF;
+}
+
+int read32(int addr) {
+    check_memory(addr);
+    check_memory(addr + 3);
+    return memory[addr] | (memory[addr+1] << 8) | (memory[addr+2] << 16) | (memory[addr+3] << 24);
+}
+
+void write8(int addr, uint8_t val) {
+    check_memory(addr);
+    memory[addr] = val;
+}
+
+uint8_t read8(int addr) {
+    check_memory(addr);
+    return memory[addr];
+}
+
+int fetch() {
+    int val = read32(pc); // Read 4 bytes at the Program Counter
+    pc += 4;              // Advance PC by 4 bytes
+    return val;
+}
+
+void push(int val) {
+    sp -= 4;              // Move stack pointer up by 4 bytes
+    write32(sp, val);     // Write the 32-bit integer
+}
+
+int pop() {
+    int val = read32(sp); // Read the 32-bit integer at the stack pointer
+    sp += 4;              // Move stack pointer down by 4 bytes
+    return val;
 }
 
 struct termios original_termios;
@@ -129,6 +172,8 @@ int map_token(char* s) {
     if (strcmp(s, "STI") == 0) return STI;
     if (strcmp(s, "ENT") == 0) return ENT;
     if (strcmp(s, "LEV") == 0) return LEV;
+    if (strcmp(s, "LDB") == 0) return LDB;
+    if (strcmp(s, "STB") == 0) return STB;
 
     // operators
     //
@@ -183,206 +228,70 @@ int map_token(char* s) {
 
 void eval(int instr) {
     switch(instr) {
-        case PSH: {
-                      if (sp <= FP) {
-                          printf("Stack Overflow\n");
-                          exit(1);
-                      }
-                      int val = memory[pc++];
-                      memory[sp--] = val;
-                      break;
+        // GENERAL
+        case PSH: push(fetch()); break;
+        case LOD: push(read32(fetch())); break;
+        case PUT: write32(fetch(), read32(sp)); break;
+        case POP: printf("%d\n", pop()); break;
+        case DRP: pop(); break;
+        case LDB: push(read8(read32(fetch()))); break;
+        case STB: write8(read32(fetch()), read32(sp) & 0xFF); break;
+
+                  // MATH & LOGIC
+        case ADD: { int a = pop(); int b = pop(); push(b + a); break; }
+        case SUB: { int a = pop(); int b = pop(); push(b - a); break; }
+        case MUL: { int a = pop(); int b = pop(); push(b * a); break; }
+        case DIV: { int a = pop(); int b = pop(); if(a==0)exit(1); push(b / a); break; }
+        case MOD: { int a = pop(); int b = pop(); if(a==0)exit(1); push(b % a); break; }
+        case AND: { int a = pop(); int b = pop(); push(b & a); break; }
+        case ORR: { int a = pop(); int b = pop(); push(b | a); break; }
+        case XOR: { int a = pop(); int b = pop(); push(b ^ a); break; }
+        case SHL: { int a = pop(); int b = pop(); push(b << a); break; }
+        case SHR: { int a = pop(); int b = pop(); push(b >> a); break; }
+        case NOT: push(~pop()); break;
+
+                  // MEMORY & JUMPS
+        case LDI: push(read32(read32(fetch()))); break;
+        case STI: write32(read32(fetch()), read32(sp)); break;
+        case MOV: { int reg = fetch(); write32(reg, fetch()); break; }
+        case JMP: pc = fetch(); break;
+        case CMP: { 
+                      int a = read32(fetch()); 
+                      int b = read32(fetch()); 
+                      if (a == b) flag = 0; else if (a > b) flag = 1; else flag = -1; 
+                      break; 
                   }
-        case LOD: {
-                      int reg_addr = memory[pc++];
-                      check_memory(reg_addr);
-                      memory[sp--] = memory[reg_addr];
-                      break;
-                  }
-        case ADD: {
-                      int A = memory[++sp]; //pop
-                      int B = memory[++sp]; //pop
-                      memory[sp--] = A+B;
-                      break;
-                  }
-        case SUB: {
-                      int A = memory[++sp]; //pop
-                      int B = memory[++sp]; //pop
-                      memory[sp--] = B-A;
-                      break;
-                  }
-        case AND: {
-                      int A = memory[++sp]; //pop
-                      int B = memory[++sp]; //pop
-                      memory[sp--] = A & B;
-                      break;
-                  }
-        case ORR: {
-                      int A = memory[++sp]; //pop
-                      int B = memory[++sp]; //pop
-                      memory[sp--] = A | B;
-                      break;
-                  }
-        case POP: {
-                      printf("%d\n",memory[++sp]);
-                      break;
-                  }
-        case DRP: {
-                      sp++;
-                      break;
-                  }
-        case LDI: {
-                      int reg = memory[pc++];           // Get the register containing the address
-                      check_memory(reg);
-                      int addr = memory[reg];           // Look inside register to get the address
-                      check_memory(addr);
-                      memory[sp--] = memory[addr];      // Push the value at that address onto stack
-                      break;
-                  }
-        case STI: {
-                      int reg = memory[pc++];           // Get the register containing the address
-                      check_memory(reg);
-                      int addr = memory[reg];           // Look inside register to get the address
-                      check_memory(addr);
-                      int val = memory[sp+1];           // Peek at top of stack
-                      memory[addr] = val;               // Store value into that memory address
-                      break;
-                  }
-        case ENT: {
-                      memory[sp--] = memory[FP];
-                      memory[FP] = sp;
-                      break;
-                  }
-        case LEV: {
-                      sp = memory[FP];
-                      memory[FP] = memory[++sp];
-                      break;
-                  }
-        case MOV: {
-                      int R = memory[pc++];
-                      int val = memory[pc++];
-                      memory[R] = val;
-                      break;
-                  }
-        case JMP: {
-                      int target = memory[pc++];
-                      pc = target;
-                      break;
-                  }
-        case PUT: {
-                      int addr = memory[pc++];
-                      check_memory(addr);
-                      int val = memory[sp+1];
-                      memory[addr] = val;
-                      break;
-                  }
-        case MUL: {
-                      int A = memory[++sp]; 
-                      int B = memory[++sp]; 
-                      memory[sp--] = B * A;
-                      break;
-                  }
-        case DIV: {
-                      int A = memory[++sp]; 
-                      int B = memory[++sp]; 
-                      if (A == 0) { printf("Error: Division by zero\n"); exit(1); }
-                      memory[sp--] = B / A;
-                      break;
-                  }
-        case MOD: {
-                      int A = memory[++sp]; 
-                      int B = memory[++sp]; 
-                      if (A == 0) { printf("Error: Modulo by zero\n"); exit(1); }
-                      memory[sp--] = B % A;
-                      break;
-                  }
-        case SHL: {
-                      int A = memory[++sp]; 
-                      int B = memory[++sp]; 
-                      memory[sp--] = B << A;
-                      break;
-                  }
-        case SHR: {
-                      int A = memory[++sp]; 
-                      int B = memory[++sp]; 
-                      memory[sp--] = B >> A;
-                      break;
-                  }
-        case XOR: {
-                      int A = memory[++sp]; 
-                      int B = memory[++sp]; 
-                      memory[sp--] = B ^ A;
-                      break;
-                  }
-        case NOT: {
-                      int A = memory[++sp]; 
-                      memory[sp--] = ~A;
-                      break;
-                  }        
-        case CMP: {
-                      int A = memory[pc++];
-                      int B = memory[pc++];
-                      if (memory[A] == memory[B]) flag = 0;
-                      else if (memory[A] > memory[B]) flag = 1;
-                      else flag = -1;
-                      break;
-                  }
-        case JIE: {
-                      int target = memory[pc++];
-                      if (flag == 0) pc = target;
-                      break;
-                  }
-        case JGT: {
-                      int target = memory[pc++];
-                      if (flag == 1) pc = target;
-                      break;
-                  }
-        case JLT: {
-                      int target = memory[pc++];
-                      if (flag == -1) pc = target;
-                      break;
-                  }
-        case RUN: {
-                      int target = memory[pc++];
-                      if (sp <= FP) {
-                          printf("Stack Overflow during RUN.\n");
-                          exit(1);
-                      }
-                      memory[sp--] = pc;
-                      pc = target;
-                      break;
-                  }
-        case RET: {
-                      if (sp >= MEMORY_SIZE - 1) {
-                          printf("Error: Stack underflow on RET\n");
-                          exit(1);
-                      }
-                      pc = memory[++sp];
-                      break;
-                  }
+        case JIE: { int target = fetch(); if (flag == 0) pc = target; break; }
+        case JGT: { int target = fetch(); if (flag == 1) pc = target; break; }
+        case JLT: { int target = fetch(); if (flag == -1) pc = target; break; }
+
+                  // FUNCTIONS
+        case RUN: { int target = fetch(); push(pc); pc = target; break; }
+        case RET: pc = pop(); break;
+        case ENT: push(read32(FP)); write32(FP, sp); break;
+        case LEV: sp = read32(FP); write32(FP, pop()); break;
         case SYS: {
-                      switch(memory[RS]) {
+                      switch(read32(RS)) {
                           case CHAR: //print character
-                              printf("%c", memory[RC]);
+                              printf("%c", read32(RC));
                               fflush(stdout);
                               break;
                           case CLEAR: //clear screen
                               printf("\033[2J\033[H");
-                            for(int i = 0; i < VRAM_SIZE; i++) {
-                                  memory[VRAM_BASE + i] = 0; // Wipe video memory
-                              }
+                              for(int i = 0; i < VRAM_SIZE; i++) write8(VRAM_BASE + i, 0);
                               fflush(stdout);
                               break;
                           case DRAW: //draw pixel
-                              printf("\033[%d;%dH█", memory[RY], memory[RX]);
+                              printf("\033[%d;%dH█", read32(RY), read32(RX));
                               fflush(stdout);
                               break;
                           case SLEEP: //sleep
-                              usleep(memory[RX]*1000);
+                              usleep(read32(RX)*1000);
                               break;
                           case STRING: //print string
-                              int addr = memory[RC];
-                              while (memory[addr] != 0) {
-                                  printf("%c", memory[addr]);
+                              int addr = read32(RC);
+                              while (read32(addr) != 0) {
+                                  printf("%c", read32(addr));
                                   addr++;
                               }
                               fflush(stdout);
@@ -390,18 +299,15 @@ void eval(int instr) {
                           case INPUT: //input from user
                               char ch;
                               int n = read(STDIN_FILENO, &ch, 1);
-                              if (n == 1) memory[RC] = ch;
+                              if (n == 1) write32(RC, ch);
                               break;
                           case RENDER: // render to terminal
                               printf("\033[H"); // Reset cursor to top-left
                               for (int y = 0; y < VRAM_HEIGHT; y++) {
                                   for (int x = 0; x < VRAM_WIDTH; x++) {
-                                      int pixel_color = memory[VRAM_BASE + (y * VRAM_WIDTH) + x];
-                                      if (pixel_color != 0) {
-                                          printf("\033[%dm█\033[0m", pixel_color);
-                                      } else {
-                                          printf(" "); 
-                                      }
+                                      int pixel_color = read8(VRAM_BASE + (y * VRAM_WIDTH) + x);
+                                      if (pixel_color != 0) printf("\033[%dm█\033[0m", pixel_color);
+                                      else printf(" ");
                                   }
                                   printf("\n");
                               }
@@ -426,44 +332,33 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    bool debug_mode = false;
-    if (argc >= 3 && strcmp(argv[2], "--debug") == 0) {
-        debug_mode = true;
-        printf("--- DEBUG MODE ENABLED ---\n");
-    }
-
     FILE* fptr = fopen(argv[1], "r");
     if (!fptr) return 1;
 
     char line[32];
-    int count = 0;
-
+    
+    int addr = 0;
     while (fgets(line, sizeof(line), fptr) != NULL) {
         line[strcspn(line, "\n")] = 0;
-        memory[count++] = map_token(line);
+        write32(addr, map_token(line));
+        addr += 4;
     }
     fclose(fptr);
+    int count = addr;
+
     if (isatty(STDOUT_FILENO))
         init_terminal();
 
     int cycles_per_ms = CLOCK_HZ / 1000;
     int cycle_count = 0;
 
-    while (pc < count && memory[pc] != HLT) {
-        eval(memory[pc++]);
-        
+    while (pc < count && read32(pc) != HLT) {
+        eval(fetch());
+
         cycle_count++;
         if (cycle_count >= cycles_per_ms) {
             usleep(1000); 
             cycle_count = 0;
-        }
-
-        if (debug_mode) {
-            printf("\n[PC: %04d] | Instruction Code: %d\n", pc, memory[pc]);
-            printf("Registers -> RX: %d | RY: %d | RS: %d\n", memory[RX], memory[RY], memory[RS]);
-            printf("Stack Ptr -> %d\n", sp);
-            printf("Press ENTER to step...");
-            getchar();
         }
     }
     return 0;
