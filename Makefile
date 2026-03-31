@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g
 LDFLAGS = -lm
 
-all: cpu assembler
+all: cpu assembler launcher
 
 cpu: cpu.c
 	$(CC) $(CFLAGS) -o cpu cpu.c $(LDFLAGS)
@@ -10,5 +10,8 @@ cpu: cpu.c
 assembler: assembler.c
 	$(CC) $(CFLAGS) -o assembler assembler.c
 
+launcher: launcher.c
+	$(CC) $(CFLAGS) -o launcher launcher.c
+
 clean:
-	rm -f cpu assembler *.vm
+	rm -f cpu assembler launcher *.vm

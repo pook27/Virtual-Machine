@@ -396,8 +396,9 @@ void eval(int instr) {
                               printf("\033[H"); // Reset cursor to top-left
                               for (int y = 0; y < VRAM_HEIGHT; y++) {
                                   for (int x = 0; x < VRAM_WIDTH; x++) {
-                                      if (memory[VRAM_BASE + (y * VRAM_WIDTH) + x] != 0) {
-                                          printf("█"); 
+                                      int pixel_color = memory[VRAM_BASE + (y * VRAM_WIDTH) + x];
+                                      if (pixel_color != 0) {
+                                          printf("\033[%dm█\033[0m", pixel_color);
                                       } else {
                                           printf(" "); 
                                       }

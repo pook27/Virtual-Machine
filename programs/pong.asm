@@ -1,3 +1,11 @@
+.DEFINE C_RED 31
+.DEFINE C_GREEN 32
+.DEFINE C_YELLOW 33
+.DEFINE C_BLUE 34
+.DEFINE C_MAGENTA 35
+.DEFINE C_CYAN 36
+.DEFINE C_WHITE 37
+
 .DATA
     ball_x: 32      ; Start center of 64 width
     ball_y: 15      ; Start center of 32 height
@@ -136,6 +144,7 @@ DRAW_FRAME:
     SYS
     
     ; Draw Paddle Top
+    MOV R3, C_CYAN
     MOV RX, 2
     LOD paddle_y
     PSH 1
@@ -161,6 +170,7 @@ DRAW_FRAME:
     RUN DRAW_PIXEL
 
     ; Draw Ball
+    MOV R3, C_RED
     LOD ball_x
     PUT RX
     DRP
@@ -197,9 +207,9 @@ DRAW_PIXEL:
     ADD             ; + 4096 (VRAM BASE)
     PUT R1          ; Store pointer in R1
     DRP
-
-    PSH 1           ; Pixel ON value
-    PUT [R1]        ; Store 1 into VRAM memory address!
+    
+    LOD R3          ; Load The Color From R3
+    PUT [R1]        ; Store The Color into VRAM memory address!
     DRP
     LEV
     RET
