@@ -7,6 +7,9 @@
 .DEFINE C_WHITE 37
 .DEFINE VRAM_BASE 1048576
 
+.DEFINE MMIO_W 2097152   ; KEYBOARD_BASE + 0
+.DEFINE MMIO_S 2097153   ; KEYBOARD_BASE + 1
+
 .DATA
     ball_x: 32      ; Start center of 64 width
     ball_y: 15      ; Start center of 32 height
@@ -18,18 +21,23 @@
 
 .TEXT
 MAIN:
-    MOV RC, 0
-    MOV RS, INPUT
-    SYS
-    
-    MOV R2, 119
-    CMP RC, R2
+    ; 1. Check if W is pressed
+    LDB MMIO_W      ; Load the byte from hardware memory
+    PUT R1          ; Store it in R1
+    DRP
+    MOV R2, 1       ; 1 means PRESSED
+    CMP R1, R2
     JIE MOVE_UP
-    
-    MOV R2, 115
-    CMP RC, R2
+
+    ; 2. Check if S is pressed
+    LDB MMIO_S
+    PUT R1
+    DRP
+    MOV R2, 1
+    CMP R1, R2
     JIE MOVE_DOWN
     
+    ; If neither are pressed, just update the ball!
     JMP UPDATE_PHYSICS
 
 MOVE_UP:

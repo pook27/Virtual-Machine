@@ -6,9 +6,11 @@
 #include <termios.h>
 #include <signal.h>
 #include <stdint.h>
+#include <raylib.h>
 
 #define MEMORY_SIZE (8 * 1024 * 1024) // * MB OF RAM!!!!
 #define REG_BASE    0x007FFF00        // Registers live here
+#define KEYBOARD_BASE 0x00200000      // 2MB Mark
 #define VRAM_BASE   0x00100000        // VRAM starts exactly at index 4096
 #define VRAM_WIDTH  64                // 64 columns
 #define VRAM_HEIGHT 32                // 32 rows
@@ -47,6 +49,7 @@ typedef enum {
     LEV,
     LDB,
     STB,
+    RTI,
     HLT
 } Instruction;
 
@@ -71,6 +74,8 @@ typedef enum {
     STRING,
     INPUT,
     RENDER,
+    DISK_READ,
+    DISK_WRITE,
     EXIT = 99
 } Syscall;
 
@@ -78,6 +83,31 @@ uint8_t memory[MEMORY_SIZE];
 int pc = 0; //program counter, list of instructions or basically the code
 int sp = REG_BASE - 4; //stack pointer, the "RAM" where the calculations take place
 int flag = 0;
+
+Texture2D display_texture;
+Color pixel_buffer[VRAM_SIZE];
+
+void init_display() {
+    InitWindow(VRAM_WIDTH * 10, VRAM_HEIGHT * 10, "Virtual Machine OS");
+    SetTargetFPS(60); 
+
+    Image img = GenImageColor(VRAM_WIDTH, VRAM_HEIGHT, BLACK);
+    display_texture = LoadTextureFromImage(img);
+    UnloadImage(img);
+}
+
+Color get_raylib_color(uint8_t color_code) {
+    switch(color_code) {
+        case 31: return RED;
+        case 32: return GREEN;
+        case 33: return YELLOW;
+        case 34: return BLUE;
+        case 35: return MAGENTA;
+        case 36: return (Color){0, 255, 255, 255};
+        case 37: return WHITE;
+        default: return BLACK;
+    }
+}
 
 void check_memory(int addr) {
     if (addr < 0 || addr >= MEMORY_SIZE) {
@@ -197,6 +227,7 @@ int map_token(char* s) {
     if (strcmp(s, "JLT") == 0) return JLT;
     if (strcmp(s, "RUN") == 0) return RUN;
     if (strcmp(s, "RET") == 0) return RET;
+    if (strcmp(s, "RTI") == 0) return RTI;
 
     //registers
     //
@@ -220,6 +251,8 @@ int map_token(char* s) {
     if (strcmp(s, "STRING") == 0) return STRING;
     if (strcmp(s, "INPUT") == 0) return INPUT;
     if (strcmp(s, "RENDER") == 0) return RENDER;
+    if (strcmp(s, "DISK_READ") == 0) return DISK_READ;
+    if (strcmp(s, "DISK_WRITE") == 0) return DISK_WRITE;
     if (strcmp(s, "EXIT") == 0) return EXIT;
 
 
@@ -234,7 +267,7 @@ void eval(int instr) {
         case PUT: write32(fetch(), read32(sp)); break;
         case POP: printf("%d\n", pop()); break;
         case DRP: pop(); break;
-        case LDB: push(read8(read32(fetch()))); break;
+        case LDB: push(read8(fetch())); break;
         case STB: write8(read32(fetch()), read32(sp) & 0xFF); break;
 
                   // MATH & LOGIC
@@ -268,6 +301,7 @@ void eval(int instr) {
                   // FUNCTIONS
         case RUN: { int target = fetch(); push(pc); pc = target; break; }
         case RET: pc = pop(); break;
+        case RTI: pc = pop(); break;
         case ENT: push(read32(FP)); write32(FP, sp); break;
         case LEV: sp = read32(FP); write32(FP, pop()); break;
         case SYS: {
@@ -301,18 +335,33 @@ void eval(int instr) {
                               int n = read(STDIN_FILENO, &ch, 1);
                               if (n == 1) write32(RC, ch);
                               break;
-                          case RENDER: // render to terminal
-                              printf("\033[H"); // Reset cursor to top-left
-                              for (int y = 0; y < VRAM_HEIGHT; y++) {
-                                  for (int x = 0; x < VRAM_WIDTH; x++) {
-                                      int pixel_color = read8(VRAM_BASE + (y * VRAM_WIDTH) + x);
-                                      if (pixel_color != 0) printf("\033[%dm█\033[0m", pixel_color);
-                                      else printf(" ");
-                                  }
-                                  printf("\n");
+                          case RENDER: // render to window
+                              for (int i = 0; i < VRAM_SIZE; i++) {
+                                  uint8_t pixel = read8(VRAM_BASE + i);
+                                  pixel_buffer[i] = get_raylib_color(pixel);
                               }
-                              fflush(stdout);
+                              UpdateTexture(display_texture, pixel_buffer);
+                              BeginDrawing();
+                              ClearBackground(BLACK);
+                              DrawTextureEx(display_texture, (Vector2){0,0}, 0.0f, 10.0f, WHITE);
+                              EndDrawing();
                               break;
+                          case DISK_READ: {
+                              FILE* disk = fopen("drive.img", "rb");
+                              if (disk) {
+                                  fseek(disk, read32(RX) * 512, SEEK_SET);
+                                  fread(&memory[read32(RY)], 1, 512, disk); 
+                                  fclose(disk);
+                              }
+                              break; }
+                          case DISK_WRITE: {
+                              FILE* disk = fopen("drive.img", "r+b");
+                              if (disk) {
+                                  fseek(disk, read32(RX) * 512, SEEK_SET);
+                                  fwrite(&memory[read32(RY)], 1, 512, disk);
+                                  fclose(disk);
+                              }
+                              break; }
                           case EXIT: //exit syscall
                               printf("Program Exited via Syscall.\n");
                               exit(0);
@@ -336,7 +385,7 @@ int main(int argc, char* argv[]) {
     if (!fptr) return 1;
 
     char line[32];
-    
+
     int addr = 0;
     while (fgets(line, sizeof(line), fptr) != NULL) {
         line[strcspn(line, "\n")] = 0;
@@ -348,18 +397,35 @@ int main(int argc, char* argv[]) {
 
     if (isatty(STDOUT_FILENO))
         init_terminal();
+    init_display();
 
     int cycles_per_ms = CLOCK_HZ / 1000;
     int cycle_count = 0;
+    int interrupt_clock = 0;
 
-    while (pc < count && read32(pc) != HLT) {
+    while (pc < count && read32(pc) != HLT && !WindowShouldClose()) {
         eval(fetch());
 
         cycle_count++;
         if (cycle_count >= cycles_per_ms) {
             usleep(1000); 
             cycle_count = 0;
+            interrupt_clock++;
+
+            write8(KEYBOARD_BASE + 0, IsKeyDown(KEY_W) ? 1 : 0);
+            write8(KEYBOARD_BASE + 1, IsKeyDown(KEY_S) ? 1 : 0);
+
+            if (interrupt_clock >= 16) {
+                interrupt_clock = 0;
+                
+                int isr_address = read32(4); 
+                if (isr_address != 0) {
+                    push(pc);
+                    pc = isr_address;
+                }
+            }
         }
     }
+    CloseWindow();
     return 0;
 }
