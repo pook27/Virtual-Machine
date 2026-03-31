@@ -11,11 +11,18 @@
     ; Paddle State (X is fixed at 2)
     paddle_y: 5
 
+    ; Walls coordinates
+    wall_y: 20
+    wall_x: 50
+
 ; -----------------------------
 ; --- MAIN GAME LOOP ----------
 ; -----------------------------
 .TEXT
 MAIN:
+    ; Clear last input
+    MOV RC, 0
+
     ; --- 1. HANDLE INPUT ---
     MOV RS, INPUT
     SYS
@@ -71,9 +78,8 @@ UPDATE_PHYSICS:
     JLT BOUNCE_Y
     JIE BOUNCE_Y
     
-    ; Bottom Wall (Y >= 20)
-    MOV R2, 20
-    CMP ball_y, R2
+    ; Bottom Wall (Y >= wall_y)
+    CMP ball_y, wall_y
     JGT BOUNCE_Y
     JIE BOUNCE_Y
     
@@ -89,9 +95,8 @@ BOUNCE_Y:
     DRP
 
 CHECK_X_WALLS:
-    ; Right Wall (X >= 40)
-    MOV R2, 40
-    CMP ball_x, R2
+    ; Right Wall (X >= wall_x)
+    CMP ball_x, wall_x
     JGT BOUNCE_X
     JIE BOUNCE_X
 
@@ -104,19 +109,46 @@ CHECK_X_WALLS:
     JMP RENDER
 
 CHECK_PADDLE:
-    ; Did the ball hit the paddle's Y coordinate?
     LOD ball_y
     PUT R1
     DRP
+
+    ; Check ball_y >= paddle_y - 1
     LOD paddle_y
+    PSH 1
+    SUB
     PUT R2
     DRP
     CMP R1, R2
-    JIE BOUNCE_X        ; It's a hit! Bounce it!
-    
-    ; If we missed the paddle, reset the ball to the center
-    MOV R2, 20
+    JLT PADDLE_MISS     ; ball above paddle top, miss
+
+    ; Check ball_y <= paddle_y + 1
+    LOD paddle_y
+    PSH 1
+    ADD
+    PUT R2
+    DRP
+    CMP R1, R2
+    JGT PADDLE_MISS     ; ball below paddle bottom, miss
+
+    JMP BOUNCE_X        ; within range, it's a hit!
+
+PADDLE_MISS:
+    ; 1. Respawn ball in the middle of the board (X = 25)
+    PSH 25
     PUT ball_x
+    DRP
+    
+    ; 2. Respawn ball in the middle of the Y axis (Y = 10)
+    PSH 10
+    PUT ball_y
+    DRP
+    
+    ; 3. Serve the ball LEFT towards the player (Velocity = -1)
+    PSH -1
+    PUT ball_vx
+    DRP
+    
     JMP RENDER
 
 BOUNCE_X:
@@ -133,15 +165,33 @@ RENDER:
     MOV RS, CLEAR
     SYS
     
-    ; Draw Paddle (at fixed X=2, Y=paddle_y)
+    ; Draw Paddle (3 pixels tall, at fixed X=2)
     MOV RS, DRAW
     MOV RX, 2
-    LOD paddle_y
+    LOD paddle_y        ; Top pixel: paddle_y - 1
+    PSH 1
+    SUB
     PUT RY
     DRP
     SYS
-    
-    ; Draw Ball (at X=ball_x, Y=ball_y)
+
+    MOV RS, DRAW
+    MOV RX, 2
+    LOD paddle_y        ; Middle pixel: paddle_y
+    PUT RY
+    DRP
+    SYS
+
+    MOV RS, DRAW
+    MOV RX, 2
+    LOD paddle_y        ; Bottom pixel: paddle_y + 1
+    PSH 1
+    ADD
+    PUT RY
+    DRP
+    SYS
+
+    ; Draw Ball          <-- THIS WAS MISSING
     MOV RS, DRAW
     LOD ball_x
     PUT RX
@@ -150,14 +200,13 @@ RENDER:
     PUT RY
     DRP
     SYS
-    
+
     ; --- 5. SLEEP & LOOP ---
     MOV RS, SLEEP
-    MOV RX, 60          ; 60ms delay per frame (~16 FPS)
+    MOV RX, 60
     SYS
     
     JMP MAIN
-
     HLT
 
 %include lib/math.asm

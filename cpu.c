@@ -5,6 +5,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <termios.h>
+#include <signal.h>
 
 #define MEMORY_SIZE 4096
 
@@ -55,13 +56,13 @@ typedef enum {
 } Register;
 
 typedef enum {
-   CHAR = 1,
-   CLEAR,
-   DRAW,
-   SLEEP,
-   STRING,
-   INPUT,
-   EXIT = 99
+    CHAR = 1,
+    CLEAR,
+    DRAW,
+    SLEEP,
+    STRING,
+    INPUT,
+    EXIT = 99
 } Syscall;
 
 int memory[MEMORY_SIZE];
@@ -75,6 +76,33 @@ void check_memory(int addr) {
         printf("Halting execution to prevent host corruption.\n");
         exit(1);
     }
+}
+
+struct termios original_termios;
+
+void restore_terminal() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+    printf("\033[?25h\033[0m\033[?1049l"); 
+    fflush(stdout);
+}
+
+void handle_sigint(int sig) {
+    (void)sig; 
+    printf("\n[VM] Halted by user (Ctrl+C).\n");
+    exit(0); 
+}
+
+void init_terminal() {
+    tcgetattr(STDIN_FILENO, &original_termios);
+    atexit(restore_terminal);
+    signal(SIGINT, handle_sigint);
+    printf("\033[?1049h\033[?25l");
+    fflush(stdout);
+    struct termios raw = original_termios;
+    raw.c_lflag &= ~(ICANON | ECHO);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 }
 
 int map_token(char* s) {
@@ -306,15 +334,15 @@ void eval(int instr) {
                       break;
                   }
         case RUN: {
-                       int target = memory[pc++];
-                       if (sp <= FP) {
-                            printf("Stack Overflow during RUN.\n");
-                            exit(1);
-                       }
-                       memory[sp--] = pc;
-                       pc = target;
-                       break;
-                   }
+                      int target = memory[pc++];
+                      if (sp <= FP) {
+                          printf("Stack Overflow during RUN.\n");
+                          exit(1);
+                      }
+                      memory[sp--] = pc;
+                      pc = target;
+                      break;
+                  }
         case RET: {
                       if (sp >= MEMORY_SIZE - 1) {
                           printf("Error: Stack underflow on RET\n");
@@ -343,20 +371,16 @@ void eval(int instr) {
                           case STRING: //print string
                               int addr = memory[RC];
                               while (memory[addr] != 0) {
-                                printf("%c", memory[addr]);
-                                addr++;
+                                  printf("%c", memory[addr]);
+                                  addr++;
                               }
                               fflush(stdout);
                               break;
                           case INPUT: //input fromn user
-                              struct termios oldt, newt;
-                              tcgetattr(STDIN_FILENO, &oldt);
-                              newt = oldt;
-                              newt.c_lflag &= ~(ICANON | ECHO);
-                              tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-                              memory[RC] = getchar();
-                              tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-                              break;
+                              char ch;
+                              int n = read(STDIN_FILENO, &ch, 1);
+                              if (n == 1) memory[RC] = ch;
+                              break; 
                           case EXIT: //exit syscall
                               printf("\033[2J\033[H");
                               printf("Program Exited via Syscall.\n");
@@ -394,7 +418,7 @@ int main(int argc, char* argv[]) {
         memory[count++] = map_token(line);
     }
     fclose(fptr);
-
+    init_terminal();
     while (pc < count && memory[pc] != HLT) {
         eval(memory[pc++]);
         if (debug_mode) {
@@ -405,5 +429,8 @@ int main(int argc, char* argv[]) {
             getchar();
         }
     }
+
+    printf("\033[2J\033[H");
+    fflush(stdout);
     return 0;
 }
