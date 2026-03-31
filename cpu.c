@@ -7,7 +7,13 @@
 #include <termios.h>
 #include <signal.h>
 
-#define MEMORY_SIZE 4096
+#define MEMORY_SIZE 8192
+#define REG_BASE    1024       // Registers live here
+#define VRAM_BASE   4096       // VRAM starts exactly at index 4096
+#define VRAM_WIDTH  64         // 64 columns
+#define VRAM_HEIGHT 32         // 32 rows
+#define VRAM_SIZE   (VRAM_WIDTH * VRAM_HEIGHT) // 2048 integers of VRAM
+#define CLOCK_HZ 100000        // 100 kHz CPU
 
 typedef enum {
     PSH,
@@ -43,7 +49,7 @@ typedef enum {
 } Instruction;
 
 typedef enum {
-    R0 = (int) pow( 10, floor( log10(MEMORY_SIZE) ) ), // 1e{n} for : (1e{n} , 1e{n+1})
+    R0 = REG_BASE,                                     // general purpose Register
     R1,                                                // general purpose Register
     R2,                                                // general purpose Register
     R3,                                                // general purpose Register
@@ -62,6 +68,7 @@ typedef enum {
     SLEEP,
     STRING,
     INPUT,
+    RENDER,
     EXIT = 99
 } Syscall;
 
@@ -167,6 +174,7 @@ int map_token(char* s) {
     if (strcmp(s, "SLEEP") == 0) return SLEEP;
     if (strcmp(s, "STRING") == 0) return STRING;
     if (strcmp(s, "INPUT") == 0) return INPUT;
+    if (strcmp(s, "RENDER") == 0) return RENDER;
     if (strcmp(s, "EXIT") == 0) return EXIT;
 
 
@@ -359,6 +367,9 @@ void eval(int instr) {
                               break;
                           case CLEAR: //clear screen
                               printf("\033[2J\033[H");
+                            for(int i = 0; i < VRAM_SIZE; i++) {
+                                  memory[VRAM_BASE + i] = 0; // Wipe video memory
+                              }
                               fflush(stdout);
                               break;
                           case DRAW: //draw pixel
@@ -376,13 +387,26 @@ void eval(int instr) {
                               }
                               fflush(stdout);
                               break;
-                          case INPUT: //input fromn user
+                          case INPUT: //input from user
                               char ch;
                               int n = read(STDIN_FILENO, &ch, 1);
                               if (n == 1) memory[RC] = ch;
-                              break; 
+                              break;
+                          case RENDER: // render to terminal
+                              printf("\033[H"); // Reset cursor to top-left
+                              for (int y = 0; y < VRAM_HEIGHT; y++) {
+                                  for (int x = 0; x < VRAM_WIDTH; x++) {
+                                      if (memory[VRAM_BASE + (y * VRAM_WIDTH) + x] != 0) {
+                                          printf("█"); 
+                                      } else {
+                                          printf(" "); 
+                                      }
+                                  }
+                                  printf("\n");
+                              }
+                              fflush(stdout);
+                              break;
                           case EXIT: //exit syscall
-                              printf("\033[2J\033[H");
                               printf("Program Exited via Syscall.\n");
                               exit(0);
                               break;
@@ -418,9 +442,21 @@ int main(int argc, char* argv[]) {
         memory[count++] = map_token(line);
     }
     fclose(fptr);
-    init_terminal();
+    if (isatty(STDOUT_FILENO))
+        init_terminal();
+
+    int cycles_per_ms = CLOCK_HZ / 1000;
+    int cycle_count = 0;
+
     while (pc < count && memory[pc] != HLT) {
         eval(memory[pc++]);
+        
+        cycle_count++;
+        if (cycle_count >= cycles_per_ms) {
+            usleep(1000); 
+            cycle_count = 0;
+        }
+
         if (debug_mode) {
             printf("\n[PC: %04d] | Instruction Code: %d\n", pc, memory[pc]);
             printf("Registers -> RX: %d | RY: %d | RS: %d\n", memory[RX], memory[RY], memory[RS]);
@@ -429,8 +465,5 @@ int main(int argc, char* argv[]) {
             getchar();
         }
     }
-
-    printf("\033[2J\033[H");
-    fflush(stdout);
     return 0;
 }

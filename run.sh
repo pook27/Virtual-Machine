@@ -21,10 +21,12 @@ echo "Assembling: $INPUT_FILE -> $OUTPUT_FILE"
 
 if [ $? -eq 0 ]; then
     echo "Running Virtual Machine..."
+    echo "-----------------------------------"
     
     # 3. Run the VM, passing the debug flag if it exists
     ./cpu "$OUTPUT_FILE" $DEBUG_FLAG
     
+    echo -e "\n-----------------------------------"
     echo "Execution finished."
 else
     echo "Assembly failed. Halting process."
