@@ -26,6 +26,7 @@ char text_tokens[MAX_TOKENS][MAX_TOKENS_LEN];
 int text_token_count = 0;
 
 int current_section = 0; //0 for .TEXT 1 for .DATA
+int base_address = 0;
 
 Label labels[MAX_LABELS];
 int label_count = 0;
@@ -163,7 +164,7 @@ int process_file(const char* filename) {
 void write_token(FILE* outfile, char* tok) {
     for(int j=0; j<label_count; j++) {
         if(strcmp(tok, labels[j].name) == 0) {
-            int abs_addr = labels[j].is_data ? ((labels[j].address + 2) * 4) : ((labels[j].address + 2 + data_token_count) * 4);
+            int abs_addr = base_address + labels[j].is_data ? ((labels[j].address + 2) * 4) : ((labels[j].address + 2 + data_token_count) * 4);
             fprintf(outfile, "%d\n", abs_addr);
             return;
         }
@@ -172,10 +173,12 @@ void write_token(FILE* outfile, char* tok) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        printf("Usage: %s <input.asm> <output.vm>\n", argv[0]);
+    if (argc < 3 || argc > 4) {
+        printf("Usage: %s <input.asm> <output.vm> [base address]\n", argv[0]);
         return 1;
     }
+
+    if (argc == 4) base_address = atoi(argv[3]);
 
     if (process_file(argv[1]) != 0) return 1;
 
@@ -183,7 +186,7 @@ int main(int argc, char* argv[]) {
 
     // Automatically write a JMP instruction to jump over all .DATA into the .TEXT segment
     fprintf(outfile, "JMP\n");
-    fprintf(outfile, "%d\n", (data_token_count + 2) * 4); // Jump target
+    fprintf(outfile, "%d\n", base_address + (data_token_count + 2) * 4); // Jump target
 
     for(int i=0; i < data_token_count; i++) write_token(outfile, data_tokens[i]);
     for(int i=0; i < text_token_count; i++) write_token(outfile, text_tokens[i]);

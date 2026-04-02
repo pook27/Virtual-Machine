@@ -8,14 +8,14 @@
 #include <stdint.h>
 #include <raylib.h>
 
-#define MEMORY_SIZE (8 * 1024 * 1024) // * MB OF RAM!!!!
-#define REG_BASE    0x007FFF00        // Registers live here
-#define KEYBOARD_BASE 0x00200000      // 2MB Mark
-#define VRAM_BASE   0x00100000        // VRAM starts exactly at index 4096
-#define VRAM_WIDTH  64                // 64 columns
-#define VRAM_HEIGHT 32                // 32 rows
-#define VRAM_SIZE   (VRAM_WIDTH * VRAM_HEIGHT) // 2048 integers of VRAM
-#define CLOCK_HZ 100000               // 100 kHz CPU
+#define MEMORY_SIZE   (8 * 1024 * 1024)          // * MB OF RAM!!!!
+#define REG_BASE      0x007FFF00                 // Registers live here
+#define KEYBOARD_BASE 0x00200000                 // 2MB Mark
+#define VRAM_BASE     0x00100000                 // VRAM starts exactly at index 4096
+#define VRAM_WIDTH    64                         // 64 columns
+#define VRAM_HEIGHT   32                         // 32 rows
+#define VRAM_SIZE     (VRAM_WIDTH * VRAM_HEIGHT) // 2048 integers of VRAM
+#define CLOCK_HZ      100000                     // 100 kHz CPU
 
 typedef enum {
     PSH,
@@ -82,12 +82,14 @@ typedef enum {
 uint8_t memory[MEMORY_SIZE];
 int pc = 0; //program counter, list of instructions or basically the code
 int sp = REG_BASE - 4; //stack pointer, the "RAM" where the calculations take place
-int flag = 0;
+int flag = 0; //for jumping conditionals and comaprisons
+int is_interactive = 0;
 
 Texture2D display_texture;
 Color pixel_buffer[VRAM_SIZE];
 
 void init_display() {
+    SetTraceLogLevel(LOG_WARNING);
     InitWindow(VRAM_WIDTH * 10, VRAM_HEIGHT * 10, "Virtual Machine OS");
     SetTargetFPS(60); 
 
@@ -336,6 +338,7 @@ void eval(int instr) {
                               if (n == 1) write32(RC, ch);
                               break;
                           case RENDER: // render to window
+                              if (!is_interactive) break;
                               for (int i = 0; i < VRAM_SIZE; i++) {
                                   uint8_t pixel = read8(VRAM_BASE + i);
                                   pixel_buffer[i] = get_raylib_color(pixel);
@@ -375,35 +378,34 @@ void eval(int instr) {
     }
 }
 
-int main(int argc, char* argv[]) {
-    if (argc < 2){
-        printf("Usage: %s <program.asm> [--debug]\n", argv[0]);
+int main() {
+    // BIOS boot sequence
+    FILE* disk = fopen("drive.img", "rb");
+    if (!disk) {
+        printf("BIOS FATAL ERROR: No bootable drive.img found\n");
         return 1;
     }
 
-    FILE* fptr = fopen(argv[1], "r");
-    if (!fptr) return 1;
+    fread(memory, 1, 512, disk);
+    fclose(disk);
 
-    char line[32];
-
-    int addr = 0;
-    while (fgets(line, sizeof(line), fptr) != NULL) {
-        line[strcspn(line, "\n")] = 0;
-        write32(addr, map_token(line));
-        addr += 4;
-    }
-    fclose(fptr);
-    int count = addr;
-
-    if (isatty(STDOUT_FILENO))
+    is_interactive = isatty(STDOUT_FILENO);
+    if (is_interactive) {
         init_terminal();
-    init_display();
+        init_display();
+    }
 
     int cycles_per_ms = CLOCK_HZ / 1000;
     int cycle_count = 0;
     int interrupt_clock = 0;
 
-    while (pc < count && read32(pc) != HLT && !WindowShouldClose()) {
+    pc = 0;
+
+    while (pc < MEMORY_SIZE && read32(pc) != HLT) {
+        if (is_interactive && WindowShouldClose()) {
+            break;
+        }
+
         eval(fetch());
 
         cycle_count++;
@@ -412,8 +414,10 @@ int main(int argc, char* argv[]) {
             cycle_count = 0;
             interrupt_clock++;
 
-            write8(KEYBOARD_BASE + 0, IsKeyDown(KEY_W) ? 1 : 0);
-            write8(KEYBOARD_BASE + 1, IsKeyDown(KEY_S) ? 1 : 0);
+            if (is_interactive) {
+                write8(0x00200000, IsKeyDown(KEY_W) ? 1 : 0);
+                write8(0x00200001, IsKeyDown(KEY_S) ? 1 : 0);
+            }
 
             if (interrupt_clock >= 16) {
                 interrupt_clock = 0;
@@ -426,6 +430,6 @@ int main(int argc, char* argv[]) {
             }
         }
     }
-    CloseWindow();
+    if (is_interactive) CloseWindow();
     return 0;
 }
