@@ -1,6 +1,8 @@
 ; -----------------------------------------
 ; SECTOR 1: THE OPERATING SYSTEM
 ; -----------------------------------------
+.DEFINE SYS_CLEAR 2
+.DEFINE SYS_STRING 5
 
 JMP OS_MAIN
 

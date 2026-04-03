@@ -164,7 +164,7 @@ int process_file(const char* filename) {
 void write_token(FILE* outfile, char* tok) {
     for(int j=0; j<label_count; j++) {
         if(strcmp(tok, labels[j].name) == 0) {
-            int abs_addr = base_address + labels[j].is_data ? ((labels[j].address + 2) * 4) : ((labels[j].address + 2 + data_token_count) * 4);
+            int abs_addr = base_address + (labels[j].is_data ? ((labels[j].address + 2) * 4) : ((labels[j].address + 2 + data_token_count) * 4));
             fprintf(outfile, "%d\n", abs_addr);
             return;
         }
