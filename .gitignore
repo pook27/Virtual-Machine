@@ -2,9 +2,13 @@
 launcher
 assembler
 cpu
+imager
  
 # VM bytecode output
 *.vm
+
+# Image files
+*.img
  
 # Build artifacts
 *.o

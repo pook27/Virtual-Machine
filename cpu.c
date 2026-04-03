@@ -76,6 +76,7 @@ typedef enum {
     RENDER,
     DISK_READ,
     DISK_WRITE,
+    DRAW_TEXT,
     EXIT = 99
 } Syscall;
 
@@ -255,6 +256,7 @@ int map_token(char* s) {
     if (strcmp(s, "RENDER") == 0) return RENDER;
     if (strcmp(s, "DISK_READ") == 0) return DISK_READ;
     if (strcmp(s, "DISK_WRITE") == 0) return DISK_WRITE;
+    if (strcmp(s, "DRAW_TEXT") == 0) return DRAW_TEXT;
     if (strcmp(s, "EXIT") == 0) return EXIT;
 
 
@@ -365,6 +367,23 @@ void eval(int instr) {
                                   fclose(disk);
                               }
                               break; }
+                          case DRAW_TEXT: {
+                              if (!is_interactive) break;
+                              
+                              char text_buffer[256];
+                              int addr = read32(RC);
+                              int i = 0;
+                              while (read32(addr) != 0 && i < 255) {
+                                  text_buffer[i++] = (char)read32(addr);
+                                  addr += 4;
+                              }
+                              text_buffer[i] = '\0';
+
+                              BeginDrawing();
+                              DrawText(text_buffer, read32(RX), read32(RY), read32(R1), get_raylib_color(read32(R2)));
+                              EndDrawing();
+                              break;
+                          }
                           case EXIT: //exit syscall
                               printf("Program Exited via Syscall.\n");
                               exit(0);
