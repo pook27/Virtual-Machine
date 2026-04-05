@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g
 LDFLAGS = -lraylib -lm
 
-all: cpu imager assembler
+all: cpu imager assembler font_maker
 
 cpu: cpu.c
 	$(CC) $(CFLAGS) -o cpu cpu.c $(LDFLAGS)
@@ -13,5 +13,8 @@ assembler: assembler.c
 imager: imager.c
 	$(CC) $(CFLAGS) -o imager imager.c
 
+font_maker: font_maker.c
+	$(CC) $(CFLAGS) -o font_maker font_maker.c
+
 clean:
-	rm -f cpu assembler imager *.vm
+	rm -f cpu assembler imager font_maker *.vm
