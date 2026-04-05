@@ -16,7 +16,7 @@ echo "-----------------------------------"
 for ASM_FILE in "$TEST_DIR"/*.asm; do
     # Get the base name without extension
     BASENAME="${ASM_FILE%.*}"
-    VM_FILE="${BASENAME}.vm"
+    VM_FILE="${BASENAME}.bin"
     EXPECTED_FILE="${BASENAME}.expected"
     ACTUAL_FILE="${BASENAME}.actual"
 
