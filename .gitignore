@@ -3,6 +3,7 @@ font_maker
 assembler
 cpu
 imager
+compiler
  
 # VM bytecode output
 *.vm
