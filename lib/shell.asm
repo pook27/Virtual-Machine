@@ -61,7 +61,7 @@ STR_CMP_LOOP:
     PUT R3          
     DRP
     
-    LOD R2          ; Read 32-bit int from memory target string
+    LDI R2          ; <--- FIXED: LDI reads the 32-bit int AT the pointer!
     PUT R4          
     DRP
 
