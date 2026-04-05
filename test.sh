@@ -29,7 +29,7 @@ for ASM_FILE in "$TEST_DIR"/*.asm; do
     fi
 
     # 2. Run the VM and capture the output
-    ./cpu "$VM_FILE" > "$ACTUAL_FILE"
+    ./cpu "$VM_FILE" --headless > "$ACTUAL_FILE"
 
     # 3. Compare with expected output
     if [ -f "$EXPECTED_FILE" ]; then

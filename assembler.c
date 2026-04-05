@@ -30,34 +30,63 @@ void strip_comments(char *line) {
 }
 
 int map_token(char* s) {
-    if (strcmp(s, "PSH") == 0) return PSH;     if (strcmp(s, "LOD") == 0) return LOD;    
-    if (strcmp(s, "POP") == 0) return POP;     if (strcmp(s, "DRP") == 0) return DRP;
-    if (strcmp(s, "MOV") == 0) return MOV;     if (strcmp(s, "CMP") == 0) return CMP;
-    if (strcmp(s, "PUT") == 0) return PUT;     if (strcmp(s, "SYS") == 0) return SYS;
-    if (strcmp(s, "HLT") == 0) return HLT;     if (strcmp(s, "LDI") == 0) return LDI;
-    if (strcmp(s, "STI") == 0) return STI;     if (strcmp(s, "ENT") == 0) return ENT;
-    if (strcmp(s, "LEV") == 0) return LEV;     if (strcmp(s, "LDB") == 0) return LDB;
-    if (strcmp(s, "STB") == 0) return STB;     if (strcmp(s, "ADD") == 0) return ADD;
-    if (strcmp(s, "SUB") == 0) return SUB;     if (strcmp(s, "AND") == 0) return AND;
-    if (strcmp(s, "ORR") == 0) return ORR;     if (strcmp(s, "MUL") == 0) return MUL;
-    if (strcmp(s, "DIV") == 0) return DIV;     if (strcmp(s, "MOD") == 0) return MOD;
-    if (strcmp(s, "SHL") == 0) return SHL;     if (strcmp(s, "SHR") == 0) return SHR;
-    if (strcmp(s, "XOR") == 0) return XOR;     if (strcmp(s, "NOT") == 0) return NOT;
-    if (strcmp(s, "JMP") == 0) return JMP;     if (strcmp(s, "JIE") == 0) return JIE;
-    if (strcmp(s, "JGT") == 0) return JGT;     if (strcmp(s, "JLT") == 0) return JLT;
-    if (strcmp(s, "RUN") == 0) return RUN;     if (strcmp(s, "RET") == 0) return RET;
-    if (strcmp(s, "RTI")== 0) return RTI;
-    if (strcmp(s, "R0") == 0) return R0;       if (strcmp(s, "R1") == 0) return R1;
-    if (strcmp(s, "R2") == 0) return R2;       if (strcmp(s, "R3") == 0) return R3;
-    if (strcmp(s, "R4") == 0) return R4;       if (strcmp(s, "RS") == 0) return RS;
-    if (strcmp(s, "RC") == 0) return RC;       if (strcmp(s, "RY") == 0) return RY;
-    if (strcmp(s, "RX") == 0) return RX;       if (strcmp(s, "FP") == 0) return FP;
-    if (strcmp(s, "CHAR") == 0) return CHAR;   if (strcmp(s, "CLEAR") == 0) return CLEAR;
-    if (strcmp(s, "DRAW") == 0) return DRAW;   if (strcmp(s, "SLEEP") == 0) return SLEEP;
-    if (strcmp(s, "STRING") == 0) return STRING; if (strcmp(s, "INPUT") == 0) return INPUT;
-    if (strcmp(s, "RENDER") == 0) return RENDER; if (strcmp(s, "DISK_READ") == 0) return DISK_READ;
-    if (strcmp(s, "DISK_WRITE")== 0) return DISK_WRITE; if (strcmp(s, "DRAW_TEXT")== 0) return DRAW_TEXT;
+    if (strcmp(s, "PSH") == 0) return PSH;
+    if (strcmp(s, "LOD") == 0) return LOD;
+    if (strcmp(s, "ADD") == 0) return ADD;
+    if (strcmp(s, "SUB") == 0) return SUB;
+    if (strcmp(s, "AND") == 0) return AND;
+    if (strcmp(s, "ORR") == 0) return ORR;
+    if (strcmp(s, "POP") == 0) return POP;
+    if (strcmp(s, "DRP") == 0) return DRP;
+    if (strcmp(s, "MOV") == 0) return MOV;
+    if (strcmp(s, "JMP") == 0) return JMP;
+    if (strcmp(s, "CMP") == 0) return CMP;
+    if (strcmp(s, "JIE") == 0) return JIE;
+    if (strcmp(s, "PUT") == 0) return PUT;
+    if (strcmp(s, "SYS") == 0) return SYS;
+    if (strcmp(s, "MUL") == 0) return MUL;
+    if (strcmp(s, "DIV") == 0) return DIV;
+    if (strcmp(s, "MOD") == 0) return MOD;
+    if (strcmp(s, "SHL") == 0) return SHL;
+    if (strcmp(s, "SHR") == 0) return SHR;
+    if (strcmp(s, "XOR") == 0) return XOR;
+    if (strcmp(s, "NOT") == 0) return NOT;
+    if (strcmp(s, "JGT") == 0) return JGT;
+    if (strcmp(s, "JLT") == 0) return JLT;
+    if (strcmp(s, "RUN") == 0) return RUN;
+    if (strcmp(s, "RET") == 0) return RET;
+    if (strcmp(s, "LDI") == 0) return LDI;
+    if (strcmp(s, "STI") == 0) return STI;
+    if (strcmp(s, "ENT") == 0) return ENT;
+    if (strcmp(s, "LEV") == 0) return LEV;
+    if (strcmp(s, "LDB") == 0) return LDB;
+    if (strcmp(s, "STB") == 0) return STB;
+    if (strcmp(s, "RTI") == 0) return RTI;
+    if (strcmp(s, "HLT") == 0) return HLT;
+
+    if (strcmp(s, "R0") == 0) return R0;
+    if (strcmp(s, "R1") == 0) return R1;
+    if (strcmp(s, "R2") == 0) return R2;
+    if (strcmp(s, "R3") == 0) return R3;
+    if (strcmp(s, "R4") == 0) return R4;
+    if (strcmp(s, "RS") == 0) return RS;
+    if (strcmp(s, "RC") == 0) return RC;
+    if (strcmp(s, "RY") == 0) return RY;
+    if (strcmp(s, "RX") == 0) return RX;
+    if (strcmp(s, "FP") == 0) return FP;
+
+    if (strcmp(s, "CHAR") == 0) return CHAR;
+    if (strcmp(s, "CLEAR") == 0) return CLEAR;
+    if (strcmp(s, "DRAW") == 0) return DRAW;
+    if (strcmp(s, "SLEEP") == 0) return SLEEP;
+    if (strcmp(s, "STRING") == 0) return STRING;
+    if (strcmp(s, "INPUT") == 0) return INPUT;
+    if (strcmp(s, "RENDER") == 0) return RENDER;
+    if (strcmp(s, "DISK_READ") == 0) return DISK_READ;
+    if (strcmp(s, "DISK_WRITE") == 0) return DISK_WRITE;
+    if (strcmp(s, "DRAW_TEXT") == 0) return DRAW_TEXT;
     if (strcmp(s, "EXIT") == 0) return EXIT;
+
     return atoi(s);
 }
 
@@ -103,21 +132,28 @@ void write_token(FILE* outfile, char* tok) {
             return;
         }
     }
-    write32(outfile, map_token(tok)); // Compile text to binary!
+    write32(outfile, map_token(tok));
 }
 
 int main(int argc, char* argv[]) {
     if (argc < 3 || argc > 4) {
-        printf("Usage: %s <input.asm> <output.bin> [base address]\n", argv[0]); return 1;
+        printf("Usage: %s <input.asm> <output.bin> [base address]\n", argv[0]);
+        return 1;
     }
+
     if (argc == 4) base_address = atoi(argv[3]);
+
     if (process_file(argv[1]) != 0) return 1;
 
-    FILE *outfile = fopen(argv[2], "wb"); // Write Binary
+    FILE *outfile = fopen(argv[2], "wb"); // Open in binary mode
+
+    // Write initial JMP to skip data section
     write32(outfile, JMP);
     write32(outfile, base_address + ((data_token_count + 2) * 4));
 
-    for (int i=0; i<data_token_count; i++) write32(outfile, atoi(data_tokens[i]));
+    for (int i=0; i<data_token_count; i++) write_token(outfile, data_tokens[i]);
     for (int i=0; i<text_token_count; i++) write_token(outfile, text_tokens[i]);
-    fclose(outfile); return 0;
+
+    fclose(outfile);
+    return 0;
 }

@@ -3,8 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <unistd.h>
-#include <termios.h>
-#include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <raylib.h>
 
@@ -14,7 +13,7 @@ uint8_t memory[MEMORY_SIZE];
 int pc = 0; //program counter, list of instructions or basically the code
 int sp = REG_BASE - 4; //stack pointer, the "RAM" where the calculations take place
 int flag = 0; //for jumping conditionals and comaprisons
-int is_interactive = 0;
+bool headless = false;
 
 Texture2D display_texture;
 Color pixel_buffer[VRAM_SIZE];
@@ -91,40 +90,17 @@ int pop() {
     return val;
 }
 
-struct termios original_termios;
-
-void restore_terminal() {
-    tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-    printf("\033[?25h\033[0m\033[?1049l"); 
-    fflush(stdout);
-}
-
-void handle_sigint(int sig) {
-    (void)sig; 
-    printf("\n[VM] Halted by user (Ctrl+C).\n");
-    exit(0); 
-}
-
-void init_terminal() {
-    tcgetattr(STDIN_FILENO, &original_termios);
-    atexit(restore_terminal);
-    signal(SIGINT, handle_sigint);
-    printf("\033[?1049h\033[?25l");
-    fflush(stdout);
-    struct termios raw = original_termios;
-    raw.c_lflag &= ~(ICANON | ECHO);
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 0;
-    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-}
-
 void eval(int instr) {
     switch(instr) {
         // GENERAL
         case PSH: push(fetch()); break;
         case LOD: push(read32(fetch())); break;
         case PUT: write32(fetch(), read32(sp)); break;
-        case POP: printf("%d\n", pop()); break;
+        case POP: {
+            int val = pop();
+            if (headless) printf("%d\n", val);
+            break;
+        }
         case DRP: pop(); break;
         case LDB: push(read8(fetch())); break;
         case STB: write8(read32(fetch()), read32(sp) & 0xFF); break;
@@ -164,110 +140,134 @@ void eval(int instr) {
         case ENT: push(read32(FP)); write32(FP, sp); break;
         case LEV: sp = read32(FP); write32(FP, pop()); break;
         case SYS: {
-                      switch(read32(RS)) {
-                          case CHAR: //print character
-                              printf("%c", read32(RC));
-                              fflush(stdout);
-                              break;
-                          case CLEAR: //clear screen
-                              printf("\033[2J\033[H");
-                              for(int i = 0; i < VRAM_SIZE; i++) write8(VRAM_BASE + i, 0);
-                              fflush(stdout);
-                              break;
-                          case DRAW: //draw pixel
-                              printf("\033[%d;%dH█", read32(RY), read32(RX));
-                              fflush(stdout);
-                              break;
-                          case SLEEP: //sleep
-                              usleep(read32(RX)*1000);
-                              break;
-                          case STRING: //print string
-                              int addr = read32(RC);
-                              while (read32(addr) != 0) {
-                                  printf("%c", read32(addr));
-                                  addr += 4;
-                              }
-                              fflush(stdout);
-                              break;
-                          case INPUT: //input from user
-                              char ch;
-                              int n = read(STDIN_FILENO, &ch, 1);
-                              if (n == 1) write32(RC, ch);
-                              break;
-                          case RENDER: // render to window
-                              if (!is_interactive) break;
-                              for (int i = 0; i < VRAM_SIZE; i++) {
-                                  uint8_t pixel = read8(VRAM_BASE + i);
-                                  pixel_buffer[i] = get_raylib_color(pixel);
-                              }
-                              UpdateTexture(display_texture, pixel_buffer);
-                              BeginDrawing();
-                              ClearBackground(BLACK);
-                              DrawTextureEx(display_texture, (Vector2){0,0}, 0.0f, 10.0f, WHITE);
-                              EndDrawing();
-                              break;
-                          case DISK_READ: {
-                              FILE* disk = fopen("drive.img", "rb");
-                              if (disk) {
-                                  fseek(disk, read32(RX) * 512, SEEK_SET);
-                                  fread(&memory[read32(RY)], 1, 512, disk); 
-                                  fclose(disk);
-                              }
-                              break; }
-                          case DISK_WRITE: {
-                              FILE* disk = fopen("drive.img", "r+b");
-                              if (disk) {
-                                  fseek(disk, read32(RX) * 512, SEEK_SET);
-                                  fwrite(&memory[read32(RY)], 1, 512, disk);
-                                  fclose(disk);
-                              }
-                              break; }
-                          case DRAW_TEXT: {
-                              if (!is_interactive) break;
-                              
-                              char text_buffer[256];
-                              int addr = read32(RC);
-                              int i = 0;
-                              while (read32(addr) != 0 && i < 255) {
-                                  text_buffer[i++] = (char)read32(addr);
-                                  addr += 4;
-                              }
-                              text_buffer[i] = '\0';
-
-                              BeginDrawing();
-                              DrawText(text_buffer, read32(RX), read32(RY), read32(R1), get_raylib_color(read32(R2)));
-                              EndDrawing();
-                              break;
-                          }
-                          case EXIT: //exit syscall
-                              printf("Program Exited via Syscall.\n");
-                              exit(0);
-                              break;
-                          default:
-                              printf("Error: Unkown syscall %d\n", memory[RS]);
-                              break;
-                      }
-                      break;
-                  }
+            switch(read32(RS)) {
+                case CHAR: 
+                    if (headless) { printf("%c", read32(RC)); fflush(stdout); }
+                    break;
+                case STRING: 
+                    if (headless) {
+                        int addr = read32(RC);
+                        while (read32(addr) != 0) {
+                            printf("%c", (char)read32(addr));
+                            addr += 4;
+                        }
+                        fflush(stdout);
+                    }
+                    break;
+                case CLEAR: 
+                    if (!headless) {
+                        for(int i = 0; i < VRAM_SIZE; i++) write8(VRAM_BASE + i, 0);
+                    }
+                    break;
+                case DRAW:
+                    // Legacy terminal escape code deleted. VRAM directly handles graphics now.
+                    break;
+                case SLEEP: 
+                    usleep(read32(RX)*1000);
+                    break;
+                case INPUT: 
+                    if (!headless) {
+                        int key = GetCharPressed();
+                        if (key > 0) write32(RC, key);
+                    }
+                    break;
+                case RENDER: 
+                    if (!headless) {
+                        for (int i = 0; i < VRAM_SIZE; i++) {
+                            pixel_buffer[i] = get_raylib_color(read8(VRAM_BASE + i));
+                        }
+                        UpdateTexture(display_texture, pixel_buffer);
+                        BeginDrawing();
+                        ClearBackground(BLACK);
+                        DrawTextureEx(display_texture, (Vector2){0,0}, 0.0f, 10.0f, WHITE);
+                        EndDrawing();
+                    }
+                    break;
+                case DISK_READ: {
+                    FILE* disk = fopen("drive.img", "rb");
+                    if (disk) {
+                        fseek(disk, read32(RX) * 512, SEEK_SET);
+                        fread(&memory[read32(RY)], 1, 512, disk); 
+                        fclose(disk);
+                    }
+                    break; 
+                }
+                case DISK_WRITE: {
+                    FILE* disk = fopen("drive.img", "r+b");
+                    if (disk) {
+                        fseek(disk, read32(RX) * 512, SEEK_SET);
+                        fwrite(&memory[read32(RY)], 1, 512, disk);
+                        fclose(disk);
+                    }
+                    break; 
+                }
+                case DRAW_TEXT: {
+                    if (!headless) {
+                        char text_buffer[256];
+                        int addr = read32(RC);
+                        int i = 0;
+                        while (read32(addr) != 0 && i < 255) {
+                            text_buffer[i++] = (char)read32(addr);
+                            addr += 4;
+                        }
+                        text_buffer[i] = '\0';
+                        BeginDrawing();
+                        DrawText(text_buffer, read32(RX), read32(RY), read32(R1), get_raylib_color(read32(R2)));
+                        EndDrawing();
+                    }
+                    break;
+                }
+                case EXIT: 
+                    if (headless) printf("Program Exited via Syscall.\n");
+                    exit(0);
+                    break;
+                default:
+                    if (headless) printf("Error: Unknown syscall %d\n", read32(RS));
+                    break;
+            }
+            break;
+        }    
     }
 }
 
-int main() {
-    // BIOS boot sequence
-    FILE* disk = fopen("drive.img", "rb");
-    if (!disk) {
-        printf("BIOS FATAL ERROR: No bootable drive.img found\n");
-        return 1;
+int main(int argc, char* argv[]) {
+    char* test_file = NULL;
+
+    // Command Line Args parser
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--headless") == 0) {
+            headless = true;
+        } else {
+            test_file = argv[i];
+        }
     }
 
-    fread(memory, 1, 512, disk);
-    fclose(disk);
-
-    is_interactive = isatty(STDOUT_FILENO);
-    if (is_interactive) {
-        init_terminal();
-        init_display();
+    // BOOT SEQUENCE
+    if (test_file) {
+        // Direct Binary Load (Unit Tests)
+        FILE* test_bin = fopen(test_file, "rb"); // 'rb' for raw binary!
+        if (test_bin) {
+            fseek(test_bin, 0, SEEK_END);
+            long sz = ftell(test_bin);
+            rewind(test_bin);
+            fread(memory, 1, sz, test_bin);
+            fclose(test_bin);
+        } else {
+            printf("Error: Could not open %s\n", test_file);
+            return 1;
+        }
+    } else {
+        // True OS Boot (Drive.img)
+        FILE* disk = fopen("drive.img", "rb");
+        if (!disk) {
+            printf("BIOS FATAL ERROR: No bootable drive.img found\n");
+            return 1;
+        }
+        fread(memory, 1, 512, disk);
+        fclose(disk);
     }
+
+    if (!headless) init_display();
 
     int cycles_per_ms = CLOCK_HZ / 1000;
     int cycle_count = 0;
@@ -276,9 +276,7 @@ int main() {
     pc = 0;
 
     while (pc < MEMORY_SIZE && read32(pc) != HLT) {
-        if (is_interactive && WindowShouldClose()) {
-            break;
-        }
+        if (!headless && WindowShouldClose()) break;
 
         eval(fetch());
 
@@ -288,14 +286,13 @@ int main() {
             cycle_count = 0;
             interrupt_clock++;
 
-            if (is_interactive) {
-                write8(0x00200000, IsKeyDown(KEY_W) ? 1 : 0);
-                write8(0x00200001, IsKeyDown(KEY_S) ? 1 : 0);
+            if (!headless) {
+                write8(KEYBOARD_BASE, IsKeyDown(KEY_W) ? 1 : 0);
+                write8(KEYBOARD_BASE + 1, IsKeyDown(KEY_S) ? 1 : 0);
             }
 
             if (interrupt_clock >= 16) {
                 interrupt_clock = 0;
-                
                 int isr_address = read32(4); 
                 if (isr_address != 0) {
                     push(pc);
@@ -304,6 +301,7 @@ int main() {
             }
         }
     }
-    if (is_interactive) CloseWindow();
+    
+    if (!headless) CloseWindow();
     return 0;
 }
