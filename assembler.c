@@ -103,25 +103,72 @@ int process_file(const char* filename) {
     char line[MAX_LINE_LEN];
     while (fgets(line, sizeof(line), infile)) {
         strip_comments(line);
-        char *tok = strtok(line, " \t\n\r");
+        char *tok = strtok(line, " \t\n\r,");
         while (tok != NULL) {
             if (strcmp(tok, ".DATA") == 0) current_section = 1;
             else if (strcmp(tok, ".TEXT") == 0) current_section = 0;
-            else {
-                if (tok[strlen(tok)-1] == ':') {
-                    tok[strlen(tok)-1] = '\0';
-                    strcpy(labels[label_count].name, tok);
-                    labels[label_count].is_data = current_section;
-                    labels[label_count].address = current_section ? data_token_count : text_token_count;
-                    label_count++;
-                } else {
-                    strcpy(current_section ? data_tokens[data_token_count++] : text_tokens[text_token_count++], tok);
+            else if (strcmp(tok, ".DEFINE") == 0) {
+                char *name = strtok(NULL, " \t\n\r,");
+                char *val  = strtok(NULL, " \t\n\r,");
+                if (name && val && macro_count < MAX_MACROS) {
+                    strcpy(macros[macro_count].name, name);
+                    strcpy(macros[macro_count].value, val);
+                    macro_count++;
                 }
+            } else if (strcmp(tok, ".STRING") == 0) {
+                char *q = strtok(NULL, "\"");  // strtok skips the opening " automatically
+                if (q) {
+                    while (*q) {
+                        char buf[MAX_TOKENS_LEN];
+                        if (*q == '\\' && *(q+1)) {
+                            q++;
+                            int ch;
+                            if      (*q == 'n')  ch = 10;
+                            else if (*q == 't')  ch = 9;
+                            else if (*q == '"')  ch = 34;
+                            else if (*q == '\\') ch = 92;
+                            else                 ch = *q;
+                            sprintf(buf, "%d", ch);
+                        } else {
+                            sprintf(buf, "%d", (unsigned char)*q);
+                        }
+                        strcpy(current_section ? data_tokens[data_token_count++]
+                                : text_tokens[text_token_count++], buf);
+                        q++;
+                    }
+                }
+                strcpy(current_section ? data_tokens[data_token_count++]
+                        : text_tokens[text_token_count++], "0");
+                break;
+            } else if (strcmp(tok, "%include") == 0) {
+                char *inc = strtok(NULL, " \t\n\r,\"");
+                if (inc) process_file(inc);
+                break;
+            } else {
+            if (tok[strlen(tok)-1] == ':') {
+                tok[strlen(tok)-1] = '\0';
+                strcpy(labels[label_count].name, tok);
+                labels[label_count].is_data = current_section;
+                labels[label_count].address = current_section ? data_token_count : text_token_count;
+                label_count++;
+            } else {
+                int is_macro = 0;
+                for (int m = 0; m < macro_count; m++) {
+                    if (strcmp(tok, macros[m].name) == 0) {
+                        strcpy(current_section ? data_tokens[data_token_count++]
+                                : text_tokens[text_token_count++], macros[m].value);
+                        is_macro = 1;
+                        break;
+                    }
+                }
+                if (!is_macro)
+                    strcpy(current_section ? data_tokens[data_token_count++] : text_tokens[text_token_count++], tok);
             }
-            tok = strtok(NULL, " \t\n\r");
         }
+        tok = strtok(NULL, " \t\n\r,");
     }
-    fclose(infile); return 0;
+}
+fclose(infile); return 0;
 }
 
 void write_token(FILE* outfile, char* tok) {
