@@ -186,8 +186,8 @@ int process_file(const char *filename) {
                     strcpy(labels[label_count].name, tok);
                     labels[label_count].is_data  = current_section;
                     labels[label_count].address  = current_section
-                                                     ? data_token_count
-                                                     : text_token_count;
+                        ? data_token_count
+                        : text_token_count;
                     label_count++;
                 } else {
                     // Macro expansion?
@@ -199,7 +199,20 @@ int process_file(const char *filename) {
                             break;
                         }
                     }
-                    if (!is_macro) store_token(tok);
+                    if (!is_macro) {
+                        if (tok[0] == '"') {
+                            int len = strlen(tok);
+                            for (int i = 1; i < len; i++) {
+                                if (tok[i] == '"') break; // Stop at the closing quote
+                                char ascii_val[8];
+                                sprintf(ascii_val, "%d", (int)tok[i]);
+                                strcpy(current_section ? data_tokens[data_token_count++] : text_tokens[text_token_count++], ascii_val);
+                            }
+                            strcpy(current_section ? data_tokens[data_token_count++] : text_tokens[text_token_count++], "0");
+                        } else {
+                            strcpy(current_section ? data_tokens[data_token_count++] : text_tokens[text_token_count++], tok);
+                        }
+                    }
                 }
             }
             tok = strtok(NULL, " \t\n\r,");
@@ -218,10 +231,10 @@ void write_token(FILE *outfile, char *tok, int line_num) {
     for (int j = 0; j < label_count; j++) {
         if (strcmp(tok, labels[j].name) == 0) {
             int abs_addr = base_address + (
-                labels[j].is_data
+                    labels[j].is_data
                     ? ((labels[j].address + 2) * 4)
                     : ((labels[j].address + 2 + data_token_count) * 4)
-            );
+                    );
             write32(outfile, abs_addr);
             return;
         }
@@ -235,9 +248,9 @@ void write_token(FILE *outfile, char *tok, int line_num) {
     // literal "0" and isn't a valid number, it's a bug.
     if (val == 0 && strcmp(tok, "0") != 0 && strcmp(tok, "PSH") != 0 && !is_valid_number(tok)) {
         fprintf(stderr,
-            "assembler error: line %d: unknown token '%s'"
-            " — did you mean a label or instruction? (assembled as 0)\n",
-            line_num, tok);
+                "assembler error: line %d: unknown token '%s'"
+                " — did you mean a label or instruction? (assembled as 0)\n",
+                line_num, tok);
     }
 
     write32(outfile, val);
