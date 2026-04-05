@@ -260,7 +260,6 @@ int main(int argc, char* argv[]) {
             if (interrupt_clock >= 16) {
                 interrupt_clock = 0;
 
-                // Safely pump the OS event queue without hijacking the Program Counter!
                 if (!headless) {
                     if (WindowShouldClose()) exit(0);
                     for (int k = 1; k < 350; k++) {
