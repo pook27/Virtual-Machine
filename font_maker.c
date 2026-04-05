@@ -112,7 +112,7 @@ static const uint8_t font[256][8] = {
 
 int main() {
     FILE *f = fopen("font.bin", "wb");
-    fwrite(font, 1, 1024, f);
+    fwrite(font, 1, 2048, f);
     fclose(f);
     printf("Generated font.bin!\n");
     return 0;
