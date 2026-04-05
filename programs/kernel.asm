@@ -31,7 +31,7 @@ OS_MAIN:
     PUT R2      ; R2 now holds the memory address: 8192 + 24 = 8216
     DRP
 
-    LDB [R2]    ; Read the byte at address 8216!
+    LDB R2    ; Read the byte at address 8216!
     PUT RX      ; R3 now perfectly holds '10' (The Start Sector!)
     DRP
 
