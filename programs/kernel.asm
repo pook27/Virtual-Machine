@@ -216,7 +216,7 @@ TYPEWRITER:
 EXECUTE:
     ; DEBOUNCE: Wait until user releases the Enter key!
 WAIT_ENTER:
-    MOV RENDER
+    MOV RS, RENDER
     SYS
 
     PSH KEYBOARD
