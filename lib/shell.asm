@@ -46,6 +46,13 @@ PROCESS_COMMAND:
     MOV R0, 1
     CMP RX, R0
     JIE CMD_CLEAR
+    
+    MOV R1, CMD_BUFFER
+    MOV R2, STR_TEST
+    RUN STR_CMP
+    MOV R0, 1
+    CMP RX, R0
+    JIE CMD_CLEAR
 
     RET     ; Unknown command, return to Kernel!
 
