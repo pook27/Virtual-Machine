@@ -133,6 +133,8 @@ OS_MAIN:
     MOV RC, 4       
     SYS
 
+    RUN INIT_HEAP
+
     JMP DRAW_PROMPT
 
 ; -----------------------------------------
@@ -257,3 +259,4 @@ DRAW_PROMPT:
 ; LOAD EXTERNAL OS LIBRARIES
 ; =========================================
 %include "lib/shell.asm"
+%include "lib/alloc.asm"
