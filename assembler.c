@@ -84,7 +84,6 @@ int map_token(char* s) {
     if (strcmp(s, "RENDER") == 0) return RENDER;
     if (strcmp(s, "DISK_READ") == 0) return DISK_READ;
     if (strcmp(s, "DISK_WRITE") == 0) return DISK_WRITE;
-    if (strcmp(s, "DRAW_TEXT") == 0) return DRAW_TEXT;
     if (strcmp(s, "EXIT") == 0) return EXIT;
 
     return atoi(s);

@@ -4,13 +4,13 @@
 // --- HARDWARE ARCHITECTURE ---
 #define MEMORY_SIZE   (8 * 1024 * 1024) 
 #define REG_BASE      0x007FFF00
-#define KEYBOARD_BASE 0x00200000
+#define KEYBOARD_BASE 0x00200000 //start of MMIO Keyboard Array
 #define VRAM_BASE     0x00100000
-#define VRAM_WIDTH    64
-#define VRAM_HEIGHT   32
+#define VRAM_WIDTH    320
+#define VRAM_HEIGHT   200
 #define VRAM_SIZE     (VRAM_WIDTH * VRAM_HEIGHT)
 #define SECTOR_SIZE   512
-#define CLOCK_HZ      100000
+#define CLOCK_HZ      10000000 //MHz
 
 // --- INSTRUCTION SET ---
 typedef enum {
@@ -29,7 +29,7 @@ typedef enum {
 // --- SYSCALLS ---
 typedef enum {
     CHAR = 1, CLEAR, DRAW, SLEEP, STRING, INPUT, RENDER,
-    DISK_READ, DISK_WRITE, DRAW_TEXT,
+    DISK_READ, DISK_WRITE,
     EXIT = 99
 } Syscall;
 
