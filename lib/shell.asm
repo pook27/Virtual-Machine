@@ -34,27 +34,15 @@ PROCESS_COMMAND:
     JIE CMD_PWD
 
     MOV R1, CMD_BUFFER
-    MOV R2, STR_DVD
-    RUN STR_CMP
-    MOV R0, 1
-    CMP RX, R0
-    JIE BOOT_DVD
-
-    MOV R1, CMD_BUFFER
     MOV R2, STR_CLEAR
     RUN STR_CMP
     MOV R0, 1
     CMP RX, R0
     JIE CMD_CLEAR
     
-    MOV R1, CMD_BUFFER
-    MOV R2, STR_TEST
-    RUN STR_CMP
-    MOV R0, 1
-    CMP RX, R0
-    JIE CMD_CLEAR
-
-    RET     ; Unknown command, return to Kernel!
+    ; --- NEW: If not a built-in command, search the Hard Drive! ---
+    RUN CMD_RUN_DYNAMIC
+    RET
 
 ; -----------------------------------------
 ; SUBROUTINE: STRING COMPARE (STR_CMP)
@@ -223,26 +211,127 @@ DO_NEWLINE:
     RET
 
 ; -----------------------------------------
-; PROGRAM EXECUTION: BOOT_DVD
+; DYNAMIC COMMAND EXECUTION
 ; -----------------------------------------
-BOOT_DVD:
+CMD_RUN_DYNAMIC:
+    MOV LS_DIR_PTR, 8192  
+    MOV LS_ENTRY_CNT, 0
+
+DYNAMIC_LOOP:
+    MOV R0, 16      
+    CMP LS_ENTRY_CNT, R0
+    JIE DYNAMIC_NOT_FOUND
+
+    LDB LS_DIR_PTR
+    PUT R1
+    DRP
+    MOV R0, 0
+    CMP R1, R0
+    JIE DYNAMIC_NEXT
+
+    ; Compare typed command with 8-bit string at LS_DIR_PTR
+    MOV R1, CMD_BUFFER
+    LOD LS_DIR_PTR
+    PUT R2
+    DRP
+    RUN STR_CMP_8
+    MOV R0, 1
+    CMP RX, R0
+    JIE DYNAMIC_BOOT
+
+DYNAMIC_NEXT:
+    LOD LS_DIR_PTR
+    PSH 32
+    ADD
+    PUT LS_DIR_PTR
+    DRP
+    LOD LS_ENTRY_CNT
+    PSH 1
+    ADD
+    PUT LS_ENTRY_CNT
+    DRP
+    JMP DYNAMIC_LOOP
+
+DYNAMIC_NOT_FOUND:
+    RET
+
+DYNAMIC_BOOT:
     RUN DO_NEWLINE
     
-    ; DVD is entry #2 in Sector 9. Offset = 8192 + 32 + 24 = 8248
-    PSH 8248
+    LOD LS_DIR_PTR
+    PSH 24
+    ADD
     PUT R0
     DRP
-    LDB R0      ; Fetch Start Sector
+    LDI R0  ; Read Start Sector
     PUT RX
     DRP
 
+    LOD LS_DIR_PTR
+    PSH 28
+    ADD
+    PUT R0
+    DRP
+    LDI R0  ; Read Size in Bytes
+    PUT R1
+    DRP
+
+    ; Calculate Sectors Needed: (Size + 511) / 512
+    LOD R1
+    PSH 511
+    ADD
+    PSH 512
+    DIV
+    PUT RC
+    DRP
+
+    ; Load from Disk into User Space!
     MOV RS, DISK_READ
     MOV RY, USER_RAM
-    MOV RC, 5
     SYS
 
+    ; Boot the program!
     RUN USER_RAM
     
+    ; When program exits, clear screen and return to shell
     MOV RS, CLEAR
     SYS
+    RET
+
+; -----------------------------------------
+; STRING COMPARE (8-BIT vs 8-BIT)
+; -----------------------------------------
+STR_CMP_8:
+STR_CMP_8_LOOP:
+    LDB R1
+    PUT R3          
+    DRP
+    LDB R2
+    PUT R4          
+    DRP
+
+    CMP R3, R4
+    JIE STR_CMP_8_CONT
+    MOV RX, 0
+    RET
+
+STR_CMP_8_CONT:
+    MOV R0, 0
+    CMP R3, R0
+    JIE STR_CMP_8_MATCH
+
+    LOD R1
+    PSH 1
+    ADD
+    PUT R1
+    DRP
+    LOD R2
+    PSH 1
+    ADD
+    PUT R2
+    DRP
+    JMP STR_CMP_8_LOOP
+
+STR_CMP_8_MATCH:
+    MOV RX, 1
     RET

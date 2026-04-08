@@ -40,7 +40,6 @@ int main(int argc, char* argv[]) {
     FILE* img = fopen(argv[1], "wb");
     if (!img) return 1;
 
-    // --- 1. WRITE BOOTLOADER (Sector 0) ---
     printf("Flashing Bootloader: %s\n", argv[2]);
     FILE* boot = fopen(argv[2], "rb");
     int bytes = 0; uint8_t b;
@@ -48,7 +47,6 @@ int main(int argc, char* argv[]) {
     fclose(boot);
     pad_to_sector(img, bytes);
 
-    // --- 2. WRITE KERNEL (Sectors 1 to 8) ---
     printf("Flashing OS Kernel: %s\n", argv[3]);
     FILE* kernel = fopen(argv[3], "rb");
     bytes = 0;
@@ -56,20 +54,15 @@ int main(int argc, char* argv[]) {
     fclose(kernel);
     pad_to_sector(img, bytes);
     
-    // Pad out the rest of the reserved Kernel space up to Sector 9
     long current_pos = ftell(img);
     long dir_pos = DIR_SECTOR * SECTOR_SIZE;
     while (current_pos < dir_pos) { fputc(0, img); current_pos++; }
 
-    // --- 3. BUILD DIRECTORY TABLE & FILE DATA ---
-    // We have to hold the directory table in memory, write the files to disk, 
-    // and then go BACK to Sector 9 to write the table.
     
     uint8_t directory[SECTOR_SIZE] = {0};
     int dir_offset = 0;
     int current_file_sector = DATA_SECTOR;
 
-    // Jump to Sector 10 to start writing actual file data
     fseek(img, DATA_SECTOR * SECTOR_SIZE, SEEK_SET);
 
     for (int i = 4; i < argc; i++) {
@@ -77,16 +70,19 @@ int main(int argc, char* argv[]) {
         if (!file) continue;
 
         const char* name = get_filename(argv[i]);
-        printf("Installing File: %s (Sector %d)\n", name, current_file_sector);
+        char clean_name[24] = {0};
+        strncpy(clean_name, name, 23);
+        char* dot = strrchr(clean_name, '.');
+        if (dot) *dot = '\0';
 
-        // Write file data
+        printf("Installing File: %s (Sector %d)\n", clean_name, current_file_sector);
+        strncpy((char*)&directory[dir_offset], clean_name, 23);
+
         int file_size = 0;
         while (fread(&b, 1, 1, file)) { fputc(b, img); file_size++; }
         fclose(file);
         pad_to_sector(img, file_size);
 
-        // Create Directory Entry (32 Bytes total)
-        // [24 bytes: Name] [4 bytes: Start Sector] [4 bytes: Size]
         strncpy((char*)&directory[dir_offset], name, 23);
         
         directory[dir_offset + 24] = current_file_sector & 0xFF;
@@ -103,12 +99,9 @@ int main(int argc, char* argv[]) {
         current_file_sector += (file_size / SECTOR_SIZE) + ((file_size % SECTOR_SIZE) ? 1 : 0);
     }
 
-    // --- 4. WRITE DIRECTORY TABLE (Sector 9) ---
-    // Go back to Sector 9 and inject the table we just built!
     fseek(img, DIR_SECTOR * SECTOR_SIZE, SEEK_SET);
     fwrite(directory, 1, SECTOR_SIZE, img);
 
-    // --- 5. PAD TO 1 MEGABYTE ---
     fseek(img, 0, SEEK_END);
     current_pos = ftell(img);
     long target_size = 1024 * 1024;

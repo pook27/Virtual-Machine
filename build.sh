@@ -60,19 +60,26 @@ echo "done"
 # Step 3: Assemble
 printf "[ 3/5 ] Assembling...           "
 if $OS_MODE; then
-    ./assembler programs/boot.asm   boot.bin
-    ./assembler programs/kernel.asm kernel.bin 4096
-    ./assembler "$ASM_FILE" "${PROGRAM}.bin" 20000
+    ./assembler programs/boot.asm   boot.bin >/dev/null
+    ./assembler programs/kernel.asm kernel.bin 4096 >/dev/null
+    
+    # Assemble ALL other programs to be included on the disk!
+    for f in programs/*.asm; do
+        name=$(basename "$f" .asm)
+        case "$name" in boot|kernel) continue ;; esac
+        ./assembler "$f" "${name}.bin" 20000 >/dev/null
+    done
 else
-    ./assembler "$ASM_FILE" "${PROGRAM}.bin"
+    ./assembler "$ASM_FILE" "${PROGRAM}.bin" >/dev/null
 fi
 echo "done"
 
-# Step 4: Build disk image (OS mode only)
+# Step 4: Build disk image
 if $OS_MODE; then
     printf "[ 4/5 ] Building disk image...  "
-    ./imager drive.img boot.bin kernel.bin font.bin "${PROGRAM}.bin" 2>&1 | \
-        grep -v "^$" | sed 's/^/         /'
+    # Grab all compiled binaries EXCEPT boot and kernel
+    FILES=$(ls *.bin | grep -v "boot.bin" | grep -v "kernel.bin")
+    ./imager drive.img boot.bin kernel.bin font.bin $FILES 2>&1 | grep -v "^$" | sed 's/^/         /'
     echo ""
 else
     echo "[ 4/5 ] Disk image skipped (standalone mode)"

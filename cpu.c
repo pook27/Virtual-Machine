@@ -250,24 +250,6 @@ int main(int argc, char* argv[]) {
 
     while (pc < MEMORY_SIZE && read32(pc) != HLT) {
         eval(fetch());
-
-        cycle_count++;
-        if (cycle_count >= cycles_per_ms) {
-            usleep(1000); 
-            cycle_count = 0;
-            interrupt_clock++;
-
-            if (interrupt_clock >= 16) {
-                interrupt_clock = 0;
-
-                if (!headless) {
-                    if (WindowShouldClose()) exit(0);
-                    for (int k = 1; k < 350; k++) {
-                        write8(KEYBOARD_BASE + k, IsKeyDown(k) ? 1 : 0);
-                    }
-                }
-            }
-        }
     }
     
     if (!headless) CloseWindow();
