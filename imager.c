@@ -83,8 +83,6 @@ int main(int argc, char* argv[]) {
         fclose(file);
         pad_to_sector(img, file_size);
 
-        strncpy((char*)&directory[dir_offset], name, 23);
-        
         directory[dir_offset + 24] = current_file_sector & 0xFF;
         directory[dir_offset + 25] = (current_file_sector >> 8) & 0xFF;
         directory[dir_offset + 26] = (current_file_sector >> 16) & 0xFF;

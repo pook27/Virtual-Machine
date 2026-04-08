@@ -1,14 +1,14 @@
 .DATA
 .L..7:
-    1852399981
+    2002874980
+    1634231135
 .L..6:
-    1852399981
+    2002874980
+    1634231135
 .L..1:
-    2002874980
-    1634231135
+    1852399981
 .L..0:
-    2002874980
-    1634231135
+    1852399981
 RC:
     8388376
     0
@@ -102,8 +102,26 @@ main:
     DRP
     MOV R2, 0
     CMP R1, R2
-    JIE .L..8
+    JIE .L..2
+    LOD FP
+    PSH -12
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    LOD FP
+    PSH -8
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    PSH 95
+    PSH 255
     RUN draw_char
+    DRP
+    DRP
+    DRP
+    DRP
     LOD R1
     DRP
   MOV RS, 7
@@ -124,7 +142,7 @@ main:
     MOV R2, 0
     CMP R1, R2
     JIE .L.else.2
-  JMP .L..8
+  JMP .L..2
     JMP .L.end.2
 .L.else.2:
 .L.end.2:
@@ -144,7 +162,25 @@ main:
     MOV R2, 0
     CMP R1, R2
     JIE .L.else.5
+    LOD FP
+    PSH -12
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    LOD FP
+    PSH -8
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    PSH 95
+    PSH 0
     RUN draw_char
+    DRP
+    DRP
+    DRP
+    DRP
     LOD R1
     DRP
     LOD FP
@@ -192,12 +228,12 @@ main:
     DRP
     MOV R2, 0
     CMP R1, R2
-    JIE .L..10
+    JIE .L..4
   MOV RS, 7
   SYS
-.L..11:
+.L..5:
     JMP .L.begin.9
-.L..10:
+.L..4:
     JMP .L.end.5
 .L.else.5:
 .L.end.5:
@@ -259,10 +295,51 @@ main:
     MOV R2, 0
     CMP R1, R2
     JIE .L.else.12
+    LOD FP
+    PSH -12
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    LOD FP
+    PSH -8
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    PSH 95
+    PSH 0
     RUN draw_char
+    DRP
+    DRP
+    DRP
+    DRP
     LOD R1
     DRP
+    LOD FP
+    PSH -12
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    LOD FP
+    PSH -8
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    LOD FP
+    PSH -4
+    ADD
+    PUT R3
+    DRP
+    LDI R3
+    PSH 255
     RUN draw_char
+    DRP
+    DRP
+    DRP
+    DRP
     LOD R1
     DRP
     LOD FP
@@ -341,9 +418,9 @@ main:
     JMP .L.end.12
 .L.else.12:
 .L.end.12:
-.L..9:
+.L..3:
     JMP .L.begin.1
-.L..8:
+.L..2:
     PSH 0
     PUT R1
     DRP
@@ -354,10 +431,6 @@ main:
     RET
 draw_char:
     ENT
-    PSH 0
-    PSH 0
-    PSH 0
-    PSH 0
     PSH 0
     PSH 0
     PSH 0
@@ -408,7 +481,7 @@ draw_char:
     DRP
     MOV R2, 0
     CMP R1, R2
-    JIE .L..2
+    JIE .L..8
     PSH 0
     DRP
     PSH 0
@@ -421,7 +494,7 @@ draw_char:
     DRP
     LDI R3
     LOD FP
-    PSH -52
+    PSH 12
     ADD
     PUT R3
     DRP
@@ -486,7 +559,7 @@ draw_char:
     DRP
     MOV R2, 0
     CMP R1, R2
-    JIE .L..4
+    JIE .L..10
     LOD FP
     PSH -16
     ADD
@@ -514,7 +587,7 @@ draw_char:
     DRP
     LDI R3
     LOD FP
-    PSH -48
+    PSH 16
     ADD
     PUT R3
     DRP
@@ -529,7 +602,7 @@ draw_char:
     PSH 320
     MUL
     LOD FP
-    PSH -44
+    PSH 20
     ADD
     PUT R3
     DRP
@@ -546,7 +619,7 @@ draw_char:
     MUL
     ADD
     LOD FP
-    PSH -56
+    PSH 8
     ADD
     PUT R3
     DRP
@@ -561,7 +634,7 @@ draw_char:
     JMP .L.end.26
 .L.else.26:
 .L.end.26:
-.L..5:
+.L..11:
     LOD FP
     PSH -8
     ADD
@@ -602,8 +675,8 @@ draw_char:
     ADD
     DRP
     JMP .L.begin.24
-.L..4:
-.L..3:
+.L..10:
+.L..9:
     LOD FP
     PSH -24
     ADD
@@ -644,7 +717,7 @@ draw_char:
     ADD
     DRP
     JMP .L.begin.18
-.L..2:
+.L..8:
 .L.return.draw_char:
     LEV
     RET
