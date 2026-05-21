@@ -1,20 +1,25 @@
-# Compiled executables
-font_maker
-assembler
+# --- Build Artifacts (Binaries) ---
 cpu
+assembler
 imager
+font_maker
+chibicc
 compiler
- 
-# VM bytecode output
-*.vm
 
-# Image files
+# --- Compiled Bytecode ---
+*.bin
 *.img
 
-# Binary files
-*.bin
- 
-# Build artifacts
+# --- Temporary Assembly Files ---
+*.asm
+programs/*.asm
+lib/*.asm
+tests/*.asm
+
+# --- Compiler Temp Files ---
+*_temp.asm
+
+# --- IDE / System Files ---
+.DS_Store
 *.o
-*.a
-*.out
+*.dSYM
