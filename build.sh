@@ -11,11 +11,13 @@ set -e
 PROGRAM=""
 OS_MODE=false
 HEADLESS=""
+DEBUG=""
 
 for arg in "$@"; do
     case "$arg" in
         --os)       OS_MODE=true ;;
         --headless) HEADLESS="--headless" ;;
+        --debug)    DEBUG="--debug" ;;
         -*)         echo "Unknown flag: $arg"; exit 1 ;;
         *)          PROGRAM="$arg" ;;
     esac
@@ -31,8 +33,8 @@ if [ ! -f "$ASM_FILE" ]; then
     echo "Available programs:"
     for f in programs/*.asm; do
         name=$(basename "$f" .asm)
-        case "$name" in boot|kernel) continue ;; esac
-        echo "  $name"
+        case "$name" in boot|kernel|boot_temp|crt0) continue ;; esac
+        ./assembler "$f" "${name}.bin" 20000 >/dev/null
     done
     exit 1
 fi
@@ -60,17 +62,27 @@ echo "done"
 # Step 3: Assemble
 printf "[ 3/5 ] Assembling...           "
 if $OS_MODE; then
-    ./assembler programs/boot.asm   boot.bin >/dev/null
+    # Compile the C Kernel
+    ../chibicc/chibicc -S -o programs/kernel_temp.asm programs/kernel.c
+    cat programs/crt0.asm programs/kernel_temp.asm > programs/kernel.asm
+    
+    # Assemble Bootloader & Kernel
+    ./assembler programs/boot.asm boot.bin >/dev/null
     ./assembler programs/kernel.asm kernel.bin 4096 >/dev/null
     
-    # Assemble ALL other programs to be included on the disk!
+    # Assemble ALL other programs to be included on the disk
     for f in programs/*.asm; do
         name=$(basename "$f" .asm)
-        case "$name" in boot|kernel) continue ;; esac
-        ./assembler "$f" "${name}.bin" 20000 >/dev/null
+        case "$name" in boot|kernel|kernel_temp|crt0) continue ;; esac
+        ./assembler "$f" "${name}.bin" 200000 >/dev/null  # <-- Changed to 200000
     done
 else
-    ./assembler "$ASM_FILE" "${PROGRAM}.bin" >/dev/null
+    # STANDALONE C COMPILATION FIX
+    if [ -f "programs/${PROGRAM}.c" ]; then
+        ../chibicc/chibicc -S -o programs/${PROGRAM}_temp.asm programs/${PROGRAM}.c
+        cat programs/crt0.asm programs/${PROGRAM}_temp.asm > programs/${PROGRAM}.asm
+    fi
+    ./assembler "programs/${PROGRAM}.asm" "${PROGRAM}.bin" >/dev/null
 fi
 echo "done"
 
@@ -90,7 +102,7 @@ echo "[ 5/5 ] Launching: $PROGRAM"
 echo ""
 
 if $OS_MODE; then
-    ./cpu $HEADLESS
+    ./cpu $HEADLESS $DEBUG
 else
-    ./cpu "${PROGRAM}.bin" $HEADLESS
+    ./cpu "${PROGRAM}.bin" $HEADLESS $DEBUG
 fi

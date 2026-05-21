@@ -7,8 +7,8 @@
 
 #define BOOT_SECTOR    0
 #define KERNEL_SECTOR  1
-#define DIR_SECTOR     9
-#define DATA_SECTOR    10
+#define DIR_SECTOR     64   // Moved from 9 to 64
+#define DATA_SECTOR    65   // Moved from 10 to 65
 
 void write32(FILE* f, uint32_t val) {
     uint8_t bytes[4];

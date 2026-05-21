@@ -3,7 +3,7 @@
 
 // --- HARDWARE ARCHITECTURE ---
 #define MEMORY_SIZE   (8 * 1024 * 1024) 
-#define REG_BASE      0x007FFF00
+#define REG_BASE      0x007F0000
 #define KEYBOARD_BASE 0x00200000 //start of MMIO Keyboard Array
 #define VRAM_BASE     0x00100000
 #define VRAM_WIDTH    320

@@ -4,11 +4,11 @@
 #include <stdint.h>
 #include "vm.h"
 
-#define MAX_TOKENS 8192
+#define MAX_TOKENS 100000
 #define MAX_TOKENS_LEN 32
-#define MAX_LABELS 256
-#define MAX_LINE_LEN 256
-#define MAX_MACROS 256
+#define MAX_LABELS 4096
+#define MAX_LINE_LEN 512
+#define MAX_MACROS 1024
 
 typedef struct { char name[MAX_TOKENS_LEN]; int address; int is_data; } Label;
 typedef struct { char name[MAX_TOKENS_LEN]; char value[MAX_TOKENS_LEN]; } Macro;
